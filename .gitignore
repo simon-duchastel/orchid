@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# OS files
+.DS_Store
+
+# Orchid runtime files (user-specific)
+.orchid/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Lock files (optional - some prefer to commit these)
+# package-lock.json
