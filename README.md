@@ -1,10 +1,10 @@
 # Orchidstrator
 
-A CLI tool for orchestrating complex background AI tasks using the OpenCode SDK.
+A CLI tool for orchestrating complex background AI tasks.
 
 ## Overview
 
-Orchidstrator (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to run AI tasks in the background without blocking your terminal.
+Orchidstrator (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to orchestrate AI tasks in the background without blocking your terminal.
 
 ## Installation
 
@@ -53,12 +53,6 @@ npm run build
 npm start
 ```
 
-## Files
-
-- `~/.orchid/orchid.pid` - PID file for tracking the running daemon
-- `~/.orchid/orchid.log` - Standard output logs
-- `~/.orchid/orchid.error.log` - Error logs
-
 ## License
 
-ISC
+MIT
