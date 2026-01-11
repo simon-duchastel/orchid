@@ -33,9 +33,9 @@ program
 program
   .command("down")
   .description("Stop the orchid daemon and OpenCode server")
-  .action(() => {
+  .action(async () => {
     console.log("Stopping orchid...");
-    const result = stopDaemon();
+    const result = await stopDaemon();
     console.log(result.message);
     process.exit(result.success ? 0 : 1);
   });

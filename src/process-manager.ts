@@ -141,12 +141,12 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Stop the running daemon
- *
- * @returns Object with success status and message
  */
-export function stopDaemon(): { success: boolean; message: string } {
+export async function stopDaemon(): Promise<{ success: boolean; message: string }> {
   const pid = getRunningPid();
 
   if (pid === null) {
@@ -157,31 +157,17 @@ export function stopDaemon(): { success: boolean; message: string } {
   }
 
   try {
-    // Send SIGTERM for graceful shutdown
     process.kill(pid, "SIGTERM");
 
-    // Wait a bit and check if it stopped
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (attempts < maxAttempts) {
-      if (!isProcessRunning(pid)) {
-        break;
-      }
-      // Busy wait (in real code we'd use setTimeout but this is synchronous)
-      const start = Date.now();
-      while (Date.now() - start < 100) {
-        // spin
-      }
-      attempts++;
+    for (let i = 0; i < 10; i++) {
+      if (!isProcessRunning(pid)) break;
+      await sleep(100);
     }
 
-    // If still running, force kill
     if (isProcessRunning(pid)) {
       process.kill(pid, "SIGKILL");
     }
 
-    // Clean up PID file
     if (existsSync(PID_FILE)) {
       unlinkSync(PID_FILE);
     }
