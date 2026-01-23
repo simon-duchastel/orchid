@@ -10,13 +10,21 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/simon-duchastel/orchidstrator.git"
   },
-  "keywords": ["ai", "orchestration", "opencode", "cli"],
+  "keywords": [
+    "ai",
+    "orchestration",
+    "opencode",
+    "cli"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -29,7 +37,10 @@
     "open": "^10.1.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"

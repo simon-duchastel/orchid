@@ -1,50 +1,62 @@
 import { join, resolve } from "node:path";
 
 /**
- * Base directory for orchid configuration and state (per-directory)
+ * Generate a consistent hash from a path string
+ * This is a pure function - no side effects
  */
-export function getOrchidDir(): string {
-  return join(resolve(process.cwd()), '.orchid');
+export function generatePortHash(path: string): number {
+  let hash = 0;
+  for (let i = 0; i < path.length; i++) {
+    const char = path.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return hash;
 }
 
 /**
- * Path to the PID file that tracks the running daemon (per-directory)
+ * Convert a path hash to a port number in the range 4000-9999
+ * This is a pure function - no side effects
  */
-export function getPidFile(): string {
-  return join(getOrchidDir(), 'orchid.pid');
-}
-
-/**
- * Path to the log file for daemon output (per-directory)
- */
-export function getLogFile(): string {
-  return join(getOrchidDir(), 'orchid.log');
-}
-
-/**
- * Path to the error log file (per-directory)
- */
-export function getErrorLogFile(): string {
-  return join(getOrchidDir(), 'orchid.error.log');
+export function hashToPort(hash: number): number {
+  return 4000 + (Math.abs(hash) % 6000);
 }
 
 /**
  * Generate a unique port for this directory based on the current working directory path
  */
-export function getDirectoryPort(): number {
-  const currentDir = resolve(process.cwd());
-  
-  // Create a hash of the path to generate a consistent port
-  let hash = 0;
-  for (let i = 0; i < currentDir.length; i++) {
-    const char = currentDir.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  // Use absolute value and map to port range 4000-9999
-  const port = 4000 + (Math.abs(hash) % 6000);
-  return port;
+export function getDirectoryPort(cwdProvider: () => string = () => process.cwd()): number {
+  const currentDir = resolve(cwdProvider());
+  const hash = generatePortHash(currentDir);
+  return hashToPort(hash);
+}
+
+/**
+ * Base directory for orchid configuration and state (per-directory)
+ */
+export function getOrchidDir(cwdProvider: () => string = () => process.cwd()): string {
+  return join(resolve(cwdProvider()), '.orchid');
+}
+
+/**
+ * Path to the PID file that tracks the running daemon (per-directory)
+ */
+export function getPidFile(cwdProvider?: () => string): string {
+  return join(getOrchidDir(cwdProvider), 'orchid.pid');
+}
+
+/**
+ * Path to the log file for daemon output (per-directory)
+ */
+export function getLogFile(cwdProvider?: () => string): string {
+  return join(getOrchidDir(cwdProvider), 'orchid.log');
+}
+
+/**
+ * Path to the error log file (per-directory)
+ */
+export function getErrorLogFile(cwdProvider?: () => string): string {
+  return join(getOrchidDir(cwdProvider), 'orchid.error.log');
 }
 
 /**
