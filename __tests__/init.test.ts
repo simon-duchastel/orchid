@@ -83,6 +83,7 @@ describe('init.ts - Orchid Initialization', () => {
     });
 
     it('should reject when PID file missing', () => {
+      // First remove PID file, then test
       rmSync('/tmp/test-orchid/.orchid/orchid.pid');
       expect(validateOrchidStructure()).toBe(false);
     });
