@@ -1,70 +1,199 @@
 /**
- * Tests for init.ts module  
- * Basic tests without importing from the problematic module
+ * Tests for init.ts module
+ * Tests orchid initialization workflow with dependency injection
  */
 
-import { jest } from '@jest/globals';
-import { existsSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { 
+  isOrchidInitialized, 
+  validateOrchidStructure, 
+  createOrchidStructure, 
+  initializeOrchid 
+} from '../src/init';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { MockGitOperations } from '../src/git-manager';
+import { execSync } from 'child_process';
 
-describe('init.ts - Basic Structure Tests', () => {
-  const testDir = '/tmp/test-orchid-simple-' + Date.now();
+// Mock: paths module to control directory locations for testing
+vi.mock('../src/paths', () => ({
+  getOrchidDir: () => '/tmp/test-orchid/.orchid',
+  getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
+  getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
+  getWorktreesDir: () => '/tmp/test-orchid/.orchid/worktrees',
+}));
 
+describe('init.ts - Orchid Initialization', () => {
   beforeEach(() => {
-    // Change working directory for each test
-    process.chdir('/');
-    
     // Clean up test directory before each test
     try {
-      rmSync(testDir, { recursive: true, force: true });
+      execSync('rm -rf /tmp/test-orchid', { stdio: 'ignore' });
     } catch {
       // Ignore if directory doesn't exist
     }
-    
-    // Create test directory and change to it
-    mkdirSync(testDir, { recursive: true });
-    process.chdir(testDir);
   });
 
   afterEach(() => {
     // Clean up test directory after each test
     try {
-      process.chdir('/');
-      rmSync(testDir, { recursive: true, force: true });
+      execSync('rm -rf /tmp/test-orchid', { stdio: 'ignore' });
     } catch {
       // Ignore if directory doesn't exist
     }
   });
 
-  describe('directory structure validation', () => {
-    it('should handle empty directory', () => {
-      expect(existsSync('.orchid')).toBe(false);
+  describe('isOrchidInitialized', () => {
+    it('should return false when .orchid directory does not exist', () => {
+      expect(isOrchidInitialized()).toBe(false);
     });
 
-    it('should create basic orchid structure', () => {
-      mkdirSync('.orchid', { recursive: true });
-      mkdirSync('.orchid/main', { recursive: true });
-      mkdirSync('.orchid/worktrees', { recursive: true });
-      writeFileSync('.orchid/orchid.pid', '');
+    it('should return false when .orchid exists but main directory does not', () => {
+      mkdirSync('/tmp/test-orchid/.orchid', { recursive: true });
+      expect(isOrchidInitialized()).toBe(false);
+    });
+
+    it('should return true when both .orchid and main directories exist', () => {
+      mkdirSync('/tmp/test-orchid/.orchid/main', { recursive: true });
+      expect(isOrchidInitialized()).toBe(true);
+    });
+  });
+
+  describe('validateOrchidStructure', () => {
+    beforeEach(() => {
+      // Create basic structure for validation tests
+      mkdirSync('/tmp/test-orchid/.orchid', { recursive: true });
+      mkdirSync('/tmp/test-orchid/.orchid/main', { recursive: true });
+      mkdirSync('/tmp/test-orchid/.orchid/worktrees', { recursive: true });
+    });
+
+    it('should validate correct structure', () => {
+      // Create empty PID file
+      writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', '');
+      expect(validateOrchidStructure()).toBe(true);
+    });
+
+    it('should validate structure with valid PID', () => {
+      writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', '12345');
+      expect(validateOrchidStructure()).toBe(true);
+    });
+
+    it('should reject when .orchid directory missing', () => {
+      rmSync('/tmp/test-orchid/.orchid', { recursive: true });
+      expect(validateOrchidStructure()).toBe(false);
+    });
+
+    it('should reject when PID file missing', () => {
+      rmSync('/tmp/test-orchid/.orchid/orchid.pid');
+      expect(validateOrchidStructure()).toBe(false);
+    });
+
+    it('should reject when main directory missing', () => {
+      rmSync('/tmp/test-orchid/.orchid/main', { recursive: true });
+      expect(validateOrchidStructure()).toBe(false);
+    });
+
+    it('should reject when worktrees directory missing', () => {
+      rmSync('/tmp/test-orchid/.orchid/worktrees', { recursive: true });
+      expect(validateOrchidStructure()).toBe(false);
+    });
+
+    it('should reject when PID file contains invalid content', () => {
+      writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', 'invalid-pid');
+      expect(validateOrchidStructure()).toBe(false);
+    });
+  });
+
+  describe('createOrchidStructure', () => {
+    it('should create complete directory structure', () => {
+      const result = createOrchidStructure();
       
-      expect(existsSync('.orchid')).toBe(true);
-      expect(existsSync('.orchid/main')).toBe(true);
-      expect(existsSync('.orchid/worktrees')).toBe(true);
-      expect(existsSync('.orchid/orchid.pid')).toBe(true);
+      expect(result.success).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/main')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/worktrees')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/orchid.pid')).toBe(true);
       
-      // Verify PID file is empty
-      const pidContent = readFileSync('.orchid/orchid.pid', 'utf-8');
+      // Check PID file is empty
+      const pidContent = readFileSync('/tmp/test-orchid/.orchid/orchid.pid', 'utf-8');
       expect(pidContent).toBe('');
     });
 
-    it('should handle cleanup', () => {
-      mkdirSync('.orchid', { recursive: true });
-      mkdirSync('.orchid/main', { recursive: true });
-      writeFileSync('.orchid/orchid.pid', '12345');
+    it('should not fail when directories already exist', () => {
+      // Pre-create some directories
+      mkdirSync('/tmp/test-orchid/.orchid', { recursive: true });
       
-      // Clean up
-      rmSync('.orchid', { recursive: true });
+      const result = createOrchidStructure();
       
-      expect(existsSync('.orchid')).toBe(false);
+      expect(result.success).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/main')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/worktrees')).toBe(true);
+    });
+
+    it('should provide cleanup function', () => {
+      const result = createOrchidStructure();
+      
+      expect(result.success).toBe(true);
+      expect(typeof result.cleanup).toBe('function');
+      
+      // Verify structure exists
+      expect(existsSync('/tmp/test-orchid/.orchid')).toBe(true);
+      
+      // Run cleanup
+      result.cleanup?.();
+      
+      // Verify cleanup worked
+      expect(existsSync('/tmp/test-orchid/.orchid')).toBe(false);
+    });
+  });
+
+  describe('initializeOrchid', () => {
+    it('should reject when already initialized', async () => {
+      // Pre-create structure
+      createOrchidStructure();
+      
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('already initialized');
+    });
+
+    it('should fail when git clone fails and clean up', async () => {
+      const mockGitOps = new MockGitOperations(true); // Configure to fail
+      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Initialization failed');
+      
+      // Verify cleanup happened
+      expect(existsSync('/tmp/test-orchid/.orchid')).toBe(false);
+    });
+
+    it('should succeed with valid repository', async () => {
+      const mockGitOps = new MockGitOperations(); // Success case
+      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully initialized');
+      expect(result.message).toContain('https://github.com/user/repo.git');
+      expect(result.message).toContain('orchid up');
+      
+      // Verify structure was created
+      expect(existsSync('/tmp/test-orchid/.orchid')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/main')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/worktrees')).toBe(true);
+      expect(existsSync('/tmp/test-orchid/.orchid/orchid.pid')).toBe(true);
+    });
+
+    it('should reject invalid repository URL', async () => {
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('invalid-url', mockGitOps);
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Initialization failed');
+      
+      // Verify cleanup happened
+      expect(existsSync('/tmp/test-orchid/.orchid')).toBe(false);
     });
   });
 });
