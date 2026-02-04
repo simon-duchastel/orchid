@@ -111,7 +111,7 @@ export class TaskManager {
    * Load a specific subtask
    */
   private async loadSubtask(taskId: string, parentId: string, status: TaskStatus): Promise<Task | null> {
-    const subtaskFile = join(getSubtasksDir(parentId, 'open', this.cwdProvider), status, `${taskId}.md`);
+    const subtaskFile = join(getSubtasksDir(parentId, 'open', this.cwdProvider), status, `${taskId}.task`);
     
     if (!(await TaskFileUtils.fileExists(subtaskFile))) {
       return null;
@@ -171,7 +171,7 @@ export class TaskManager {
           };
 
           const subtaskDir = join(getSubtasksDir(taskId, task.status, this.cwdProvider), 'open');
-          const subtaskFile = join(subtaskDir, `${subtaskId}.md`);
+          const subtaskFile = join(subtaskDir, `${subtaskId}.task`);
           
           await TaskFileUtils.ensureDir(subtaskDir);
           await TaskFileUtils.writeTaskFile(subtaskFile, subtask);

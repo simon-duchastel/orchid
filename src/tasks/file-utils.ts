@@ -141,15 +141,15 @@ export class TaskFileUtils {
       .filter(entry => {
         // For main tasks, we look for directories
         if (entry.isDirectory()) return true;
-        // For subtasks, we look for .md files
-        if (entry.isFile() && entry.name.endsWith('.md')) return true;
+        // For subtasks, we look for .task files
+        if (entry.isFile() && entry.name.endsWith('.task')) return true;
         return false;
       })
       .map(entry => {
         // For directories, return the directory name
         if (entry.isDirectory()) return entry.name;
-        // For files, remove the .md extension
-        return entry.name.replace('.md', '');
+        // For files, remove the .task extension
+        return entry.name.replace('.task', '');
       });
   }
 
