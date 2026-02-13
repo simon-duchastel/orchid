@@ -1,7 +1,7 @@
 {
   "name": "orchid",
   "version": "1.0.0",
-  "description": "Orchidstrate (like orchestrate) complex background AI tasks",
+  "description": "Orchestrate complex multi-agent AI tasks",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
