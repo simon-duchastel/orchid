@@ -2,12 +2,12 @@
 
 import { Command } from "@cliffy/command";
 
-import { initCommand } from "./commands/init";
-import { upCommand } from "./commands/up";
-import { downCommand } from "./commands/down";
-import { statusCommand } from "./commands/status";
-import { dashboardCommand } from "./commands/dashboard";
-import { generateHelp } from "./help";
+import { initCommand } from "./cli/commands/init";
+import { upCommand } from "./cli/commands/up";
+import { downCommand } from "./cli/commands/down";
+import { statusCommand } from "./cli/commands/status";
+import { dashboardCommand } from "./cli/commands/dashboard";
+import { generateHelp } from "./cli/help";
 
 await new Command()
   .help(function() {
