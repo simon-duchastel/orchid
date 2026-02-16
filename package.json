@@ -34,21 +34,23 @@
     "url": "https://github.com/simon-duchastel/orchid/issues"
   },
   "homepage": "https://github.com/simon-duchastel/orchid#readme",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "dependencies": {
     "@cliffy/command": "npm:@jsr/cliffy__command@1.0.0",
     "@cliffy/table": "npm:@jsr/cliffy__table@1.0.0",
     "@opencode-ai/sdk": "1.2.6",
     "cliffy-flat-help": "1.2.0",
-    "commander": "12.1.0",
-    "open": "10.1.0",
+    "open": "11.0.0",
     "simple-git": "3.31.1"
   },
   "devDependencies": {
-    "@types/node": "25.2.3",
-    "@vitest/coverage-v8": "2.1.9",
+    "@types/node": "24.10.13",
+    "@vitest/coverage-v8": "4.0.18",
     "tsup": "8.5.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vitest": "2.1.9"
+    "vitest": "4.0.18"
   }
 }
