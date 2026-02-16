@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 import { createServer, type Server } from "node:net";
 import { isPortAvailable, findAvailablePort } from "./networking";
 
@@ -8,7 +9,11 @@ vi.mock("node:net", () => ({
 }));
 
 describe("networking utilities", () => {
-  let mockServer: Partial<Server>;
+  let mockServer: {
+    once: Mock;
+    listen: Mock;
+    close: Mock;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -17,10 +22,10 @@ describe("networking utilities", () => {
       listen: vi.fn(),
       close: vi.fn((cb?: () => void) => {
         cb?.();
-        return mockServer as Server;
+        return mockServer as unknown as Server;
       }),
     };
-    vi.mocked(createServer).mockReturnValue(mockServer as Server);
+    vi.mocked(createServer).mockReturnValue(mockServer as unknown as Server);
   });
 
   afterEach(() => {
@@ -30,12 +35,12 @@ describe("networking utilities", () => {
   describe("isPortAvailable", () => {
     it("should return true when port is available", async () => {
       // Setup: simulate successful listen
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "listening") {
           // Call handler immediately
           setTimeout(() => handler(), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       const result = await isPortAvailable(4096, "127.0.0.1");
@@ -49,11 +54,11 @@ describe("networking utilities", () => {
       const error = new Error("Port in use") as NodeJS.ErrnoException;
       error.code = "EADDRINUSE";
 
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "error") {
           setTimeout(() => handler(error), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       const result = await isPortAvailable(4096, "127.0.0.1");
@@ -66,11 +71,11 @@ describe("networking utilities", () => {
       const error = new Error("Some error") as NodeJS.ErrnoException;
       error.code = "ENOENT";
 
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "error") {
           setTimeout(() => handler(error), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       const result = await isPortAvailable(4096, "127.0.0.1");
@@ -79,11 +84,11 @@ describe("networking utilities", () => {
     });
 
     it("should use default hostname 127.0.0.1", async () => {
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "listening") {
           setTimeout(() => handler(), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       await isPortAvailable(4096);
@@ -95,12 +100,11 @@ describe("networking utilities", () => {
   describe("findAvailablePort", () => {
     it("should return the start port when it is available", async () => {
       // Setup: port 4096 is available
-      let callCount = 0;
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "listening") {
           setTimeout(() => handler(), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       const result = await findAvailablePort(4096, "127.0.0.1", 100);
@@ -111,7 +115,7 @@ describe("networking utilities", () => {
     it("should find the next available port when start port is taken", async () => {
       // Setup: ports 4096, 4097 are taken, 4098 is available
       let attemptCount = 0;
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "error") {
           if (attemptCount < 2) {
             const error = new Error("Port in use") as NodeJS.ErrnoException;
@@ -122,7 +126,7 @@ describe("networking utilities", () => {
         } else if (event === "listening" && attemptCount >= 2) {
           setTimeout(() => handler(), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       const result = await findAvailablePort(4096, "127.0.0.1", 100);
@@ -132,13 +136,13 @@ describe("networking utilities", () => {
 
     it("should throw error when no ports available within range", async () => {
       // Setup: all ports in range are taken
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "error") {
           const error = new Error("Port in use") as NodeJS.ErrnoException;
           error.code = "EADDRINUSE";
           setTimeout(() => handler(error), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       await expect(findAvailablePort(4096, "127.0.0.1", 10)).rejects.toThrow(
@@ -153,13 +157,13 @@ describe("networking utilities", () => {
 
     it("should throw error when searching exceeds maximum port number", async () => {
       // Setup mock: simulate all ports are in use, so we iterate until we exceed max
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "error") {
           const error = new Error("Port in use") as NodeJS.ErrnoException;
           error.code = "EADDRINUSE";
           setTimeout(() => handler(error), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       // Start at 65530, after 6 attempts we hit 65536 which exceeds max
@@ -167,11 +171,11 @@ describe("networking utilities", () => {
     });
 
     it("should use default hostname and maxAttempts", async () => {
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "listening") {
           setTimeout(() => handler(), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       const result = await findAvailablePort(4096);
@@ -181,13 +185,13 @@ describe("networking utilities", () => {
     });
 
     it("should respect custom maxAttempts parameter", async () => {
-      vi.mocked(mockServer.once!).mockImplementation((event: string, handler: Function) => {
+      mockServer.once.mockImplementation((event: string, handler: Function) => {
         if (event === "error") {
           const error = new Error("Port in use") as NodeJS.ErrnoException;
           error.code = "EADDRINUSE";
           setTimeout(() => handler(error), 0);
         }
-        return mockServer as Server;
+        return mockServer;
       });
 
       await expect(findAvailablePort(4096, "127.0.0.1", 5)).rejects.toThrow(

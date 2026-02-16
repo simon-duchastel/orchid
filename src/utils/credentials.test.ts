@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 import {
   generateSecureToken,
   generateServerCredentials,
@@ -15,8 +16,11 @@ vi.mock("node:crypto", () => ({
 import { randomBytes } from "node:crypto";
 
 describe("credentials utilities", () => {
+  let mockRandomBytes: Mock<[number], Buffer>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRandomBytes = vi.mocked(randomBytes) as unknown as Mock<[number], Buffer>;
   });
 
   afterEach(() => {
@@ -26,7 +30,7 @@ describe("credentials utilities", () => {
   describe("generateSecureToken", () => {
     it("should generate a token of the specified length", () => {
       // Setup: mock randomBytes to return predictable hex
-      vi.mocked(randomBytes).mockReturnValue(Buffer.from("aabbccdd11223344", "hex"));
+      mockRandomBytes.mockReturnValue(Buffer.from("aabbccdd11223344", "hex"));
 
       const token = generateSecureToken(16);
 
@@ -36,30 +40,30 @@ describe("credentials utilities", () => {
 
     it("should generate a token of default length (32)", () => {
       // Setup: mock randomBytes to return 16 bytes (32 hex chars)
-      vi.mocked(randomBytes).mockReturnValue(
+      mockRandomBytes.mockReturnValue(
         Buffer.from("aabbccdd11223344aabbccdd11223344", "hex")
       );
 
       const token = generateSecureToken();
 
       expect(token).toHaveLength(CREDENTIAL_LENGTH);
-      expect(randomBytes).toHaveBeenCalledWith(16); // 32/2 = 16 bytes
+      expect(mockRandomBytes).toHaveBeenCalledWith(16); // 32/2 = 16 bytes
     });
 
     it("should handle odd lengths by rounding up", () => {
-      vi.mocked(randomBytes).mockReturnValue(Buffer.from("aabbccdd11", "hex"));
+      mockRandomBytes.mockReturnValue(Buffer.from("aabbccdd11", "hex"));
 
       const token = generateSecureToken(9);
 
       expect(token).toHaveLength(9);
-      expect(randomBytes).toHaveBeenCalledWith(5); // ceil(9/2) = 5 bytes
+      expect(mockRandomBytes).toHaveBeenCalledWith(5); // ceil(9/2) = 5 bytes
     });
 
     it("should generate different tokens on each call", () => {
       // Setup: return different values on consecutive calls using valid hex
       let callCount = 0;
       const hexChars = "0123456789abcdef";
-      vi.mocked(randomBytes).mockImplementation((size: number) => {
+      mockRandomBytes.mockImplementation((size: number) => {
         callCount++;
         // Generate a valid hex string of the right length (size * 2 hex chars)
         let hex = "";
@@ -83,7 +87,7 @@ describe("credentials utilities", () => {
       // Setup: mock randomBytes to return valid hex strings
       let callCount = 0;
       const hexChars = "0123456789abcdef";
-      vi.mocked(randomBytes).mockImplementation((size: number) => {
+      mockRandomBytes.mockImplementation((size: number) => {
         callCount++;
         // Generate a valid hex string of size * 2 characters
         let hex = "";
@@ -103,14 +107,14 @@ describe("credentials utilities", () => {
 
     it("should generate unique credentials on each call", () => {
       // First call - return one set of bytes
-      vi.mocked(randomBytes)
+      mockRandomBytes
         .mockReturnValueOnce(Buffer.from("aabbccdd11223344aabbccdd11223344", "hex"))
         .mockReturnValueOnce(Buffer.from("11223344aabbccdd11223344aabbccdd", "hex"));
 
       const creds1 = generateServerCredentials();
       
       // Second call - return different bytes  
-      vi.mocked(randomBytes)
+      mockRandomBytes
         .mockReturnValueOnce(Buffer.from("55667788990011225566778899001122", "hex"))
         .mockReturnValueOnce(Buffer.from("33445566778899aabbccdd1122334455", "hex"));
       
