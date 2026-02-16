@@ -26,7 +26,7 @@ describe("credentials utilities", () => {
   describe("generateSecureToken", () => {
     it("should generate a token of the specified length", () => {
       // Setup: mock randomBytes to return predictable hex
-      vi.mocked(randomBytes).mockReturnValue(Buffer.from("aabbccdd11223344", "hex"));
+      vi.mocked(randomBytes).mockImplementation(() => Buffer.from("aabbccdd11223344", "hex"));
 
       const token = generateSecureToken(16);
 
@@ -36,7 +36,7 @@ describe("credentials utilities", () => {
 
     it("should generate a token of default length (32)", () => {
       // Setup: mock randomBytes to return 16 bytes (32 hex chars)
-      vi.mocked(randomBytes).mockReturnValue(
+      vi.mocked(randomBytes).mockImplementation(() =>
         Buffer.from("aabbccdd11223344aabbccdd11223344", "hex")
       );
 
@@ -47,7 +47,7 @@ describe("credentials utilities", () => {
     });
 
     it("should handle odd lengths by rounding up", () => {
-      vi.mocked(randomBytes).mockReturnValue(Buffer.from("aabbccdd11", "hex"));
+      vi.mocked(randomBytes).mockImplementation(() => Buffer.from("aabbccdd11", "hex"));
 
       const token = generateSecureToken(9);
 
@@ -104,15 +104,15 @@ describe("credentials utilities", () => {
     it("should generate unique credentials on each call", () => {
       // First call - return one set of bytes
       vi.mocked(randomBytes)
-        .mockReturnValueOnce(Buffer.from("aabbccdd11223344aabbccdd11223344", "hex"))
-        .mockReturnValueOnce(Buffer.from("11223344aabbccdd11223344aabbccdd", "hex"));
+        .mockImplementationOnce(() => Buffer.from("aabbccdd11223344aabbccdd11223344", "hex"))
+        .mockImplementationOnce(() => Buffer.from("11223344aabbccdd11223344aabbccdd", "hex"));
 
       const creds1 = generateServerCredentials();
       
       // Second call - return different bytes  
       vi.mocked(randomBytes)
-        .mockReturnValueOnce(Buffer.from("55667788990011225566778899001122", "hex"))
-        .mockReturnValueOnce(Buffer.from("33445566778899aabbccdd1122334455", "hex"));
+        .mockImplementationOnce(() => Buffer.from("55667788990011225566778899001122", "hex"))
+        .mockImplementationOnce(() => Buffer.from("33445566778899aabbccdd1122334455", "hex"));
       
       const creds2 = generateServerCredentials();
 

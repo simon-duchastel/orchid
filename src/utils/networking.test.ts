@@ -8,19 +8,19 @@ vi.mock("node:net", () => ({
 }));
 
 describe("networking utilities", () => {
-  let mockServer: Partial<Server>;
+  let mockServer: Server;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockServer = {
-      once: vi.fn(),
-      listen: vi.fn(),
+      once: vi.fn() as unknown as Server["once"],
+      listen: vi.fn() as unknown as Server["listen"],
       close: vi.fn((cb?: () => void) => {
         cb?.();
-        return mockServer as Server;
-      }),
-    };
-    vi.mocked(createServer).mockReturnValue(mockServer as Server);
+        return mockServer;
+      }) as unknown as Server["close"],
+    } as Server;
+    vi.mocked(createServer).mockReturnValue(mockServer);
   });
 
   afterEach(() => {
