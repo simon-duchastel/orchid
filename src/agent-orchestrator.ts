@@ -4,28 +4,38 @@
  * Monitors tasks in the 'open' state and manages implementor agents.
  * For each open task, an implementor agent is started to work on it.
  * When a task is no longer open, the agent is stopped.
+ * Each agent gets its own worktree in the worktrees/ directory named by task ID.
  */
 
 import { TaskManager, type Task } from "dyson-swarm";
+import { join } from "node:path";
+import { WorktreeManager } from "./worktrees/index.js";
+import { getWorktreesDir } from "./paths.js";
 
 export interface AgentInfo {
   taskId: string;
   agentId: string;
   startedAt: Date;
   status: "running" | "stopping" | "stopped";
+  worktreePath: string;
 }
 
 export interface AgentOrchestratorOptions {
   cwdProvider?: () => string;
+  worktreeManager?: WorktreeManager;
 }
 
 export class AgentOrchestrator {
   private taskManager: TaskManager;
   private runningAgents: Map<string, AgentInfo> = new Map();
   private abortController: AbortController | null = null;
+  private worktreeManager: WorktreeManager;
+  private cwdProvider: () => string;
 
   constructor(options: AgentOrchestratorOptions = {}) {
-    this.taskManager = new TaskManager({ cwdProvider: options.cwdProvider });
+    this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
+    this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
+    this.worktreeManager = options.worktreeManager ?? new WorktreeManager(this.cwdProvider());
   }
 
   async start(): Promise<void> {
@@ -97,6 +107,17 @@ export class AgentOrchestrator {
     const agentId = `${taskId}-implementor`;
     console.log(`[orchestrator] Starting implementor agent for task ${taskId}`);
 
+    const worktreesDir = getWorktreesDir(this.cwdProvider);
+    const worktreePath = join(worktreesDir, taskId);
+
+    try {
+      await this.worktreeManager.create(worktreePath, "HEAD", { detach: true });
+      console.log(`[orchestrator] Created worktree at ${worktreePath} for task ${taskId}`);
+    } catch (error) {
+      console.error(`[orchestrator] Failed to create worktree for task ${taskId}:`, error);
+      throw error;
+    }
+
     await this.taskManager.assignTask(taskId, agentId);
 
     this.runningAgents.set(taskId, {
@@ -104,11 +125,10 @@ export class AgentOrchestrator {
       agentId,
       startedAt: new Date(),
       status: "running",
+      worktreePath,
     });
 
-    // TODO: Implement actual agent start logic
-    // This should spawn an implementor agent to work on the task
-    console.log(`[orchestrator] Agent ${agentId} started for task ${taskId} (stub)`);
+    console.log(`[orchestrator] Agent ${agentId} started for task ${taskId}`);
   }
 
   private async stopAgent(taskId: string): Promise<void> {
@@ -120,11 +140,16 @@ export class AgentOrchestrator {
     agent.status = "stopping";
     console.log(`[orchestrator] Stopping agent ${agent.agentId} for task ${taskId}`);
 
-    // TODO: Implement actual agent stop logic
-    // This should terminate the implementor agent gracefully
-    console.log(`[orchestrator] Agent ${agent.agentId} stopped for task ${taskId} (stub)`);
+    console.log(`[orchestrator] Agent ${agent.agentId} stopped for task ${taskId}`);
 
     await this.taskManager.unassignTask(taskId);
+
+    try {
+      await this.worktreeManager.remove(agent.worktreePath, { force: true });
+      console.log(`[orchestrator] Removed worktree at ${agent.worktreePath} for task ${taskId}`);
+    } catch (error) {
+      console.error(`[orchestrator] Failed to remove worktree for task ${taskId}:`, error);
+    }
 
     agent.status = "stopped";
   }
