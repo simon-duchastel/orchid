@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js",
+    "start": "bun dist/cli.js",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
@@ -35,7 +35,6 @@
   },
   "homepage": "https://github.com/simon-duchastel/orchid#readme",
   "engines": {
-    "node": ">=24.0.0",
     "bun": ">=1.0.0"
   },
   "dependencies": {
