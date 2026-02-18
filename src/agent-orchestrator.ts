@@ -11,6 +11,10 @@ import { TaskManager, type Task } from "dyson-swarm";
 import { join } from "node:path";
 import { WorktreeManager } from "./worktrees/index.js";
 import { getWorktreesDir } from "./paths.js";
+import {
+  OpencodeSessionManager,
+  type AgentSession,
+} from "./opencode-session.js";
 
 export interface AgentInfo {
   taskId: string;
@@ -18,11 +22,16 @@ export interface AgentInfo {
   startedAt: Date;
   status: "running" | "stopping" | "stopped";
   worktreePath: string;
+  /** OpenCode session information for this agent */
+  session?: AgentSession;
 }
 
 export interface AgentOrchestratorOptions {
   cwdProvider?: () => string;
   worktreeManager?: WorktreeManager;
+  sessionManager?: OpencodeSessionManager;
+  /** Base URL for the OpenCode server (required for session creation) */
+  opencodeBaseUrl?: string;
 }
 
 export class AgentOrchestrator {
@@ -30,12 +39,21 @@ export class AgentOrchestrator {
   private runningAgents: Map<string, AgentInfo> = new Map();
   private abortController: AbortController | null = null;
   private worktreeManager: WorktreeManager;
+  private sessionManager: OpencodeSessionManager;
   private cwdProvider: () => string;
+  private opencodeBaseUrl: string;
 
   constructor(options: AgentOrchestratorOptions = {}) {
     this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
     this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
     this.worktreeManager = options.worktreeManager ?? new WorktreeManager(this.cwdProvider());
+    this.opencodeBaseUrl = options.opencodeBaseUrl ?? "http://127.0.0.1:4096";
+    
+    // Initialize session manager with the worktrees directory
+    const worktreesDir = getWorktreesDir(this.cwdProvider);
+    this.sessionManager = options.sessionManager ?? new OpencodeSessionManager({
+      sessionsDir: worktreesDir,
+    });
   }
 
   async start(): Promise<void> {
@@ -80,6 +98,15 @@ export class AgentOrchestrator {
     }
 
     this.runningAgents.clear();
+    
+    // Stop all remaining sessions (in case any weren't cleaned up)
+    try {
+      await this.sessionManager.stopAllSessions();
+      console.log("[orchestrator] All OpenCode sessions stopped");
+    } catch (error) {
+      console.error("[orchestrator] Error stopping sessions:", error);
+    }
+    
     console.log("[orchestrator] Stopped");
   }
 
@@ -118,6 +145,19 @@ export class AgentOrchestrator {
       throw error;
     }
 
+    // Create an OpenCode session for this agent
+    let session: AgentSession | undefined;
+    try {
+      session = await this.sessionManager.createSession(taskId, {
+        baseUrl: this.opencodeBaseUrl,
+        title: `Agent Session: ${agentId}`,
+      });
+      console.log(`[orchestrator] Created OpenCode session ${session.sessionId} for task ${taskId}`);
+    } catch (error) {
+      console.error(`[orchestrator] Failed to create OpenCode session for task ${taskId}:`, error);
+      // Continue without session - the agent can still work, just without session isolation
+    }
+
     await this.taskManager.assignTask(taskId, agentId);
 
     this.runningAgents.set(taskId, {
@@ -126,6 +166,7 @@ export class AgentOrchestrator {
       startedAt: new Date(),
       status: "running",
       worktreePath,
+      session,
     });
 
     console.log(`[orchestrator] Agent ${agentId} started for task ${taskId}`);
@@ -139,6 +180,16 @@ export class AgentOrchestrator {
 
     agent.status = "stopping";
     console.log(`[orchestrator] Stopping agent ${agent.agentId} for task ${taskId}`);
+
+    // Remove the OpenCode session if it exists
+    if (agent.session) {
+      try {
+        await this.sessionManager.removeSession(taskId);
+        console.log(`[orchestrator] Removed OpenCode session ${agent.session.sessionId} for task ${taskId}`);
+      } catch (error) {
+        console.error(`[orchestrator] Failed to remove OpenCode session for task ${taskId}:`, error);
+      }
+    }
 
     console.log(`[orchestrator] Agent ${agent.agentId} stopped for task ${taskId}`);
 
