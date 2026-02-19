@@ -29,7 +29,6 @@ export interface AgentOrchestratorOptions {
   cwdProvider?: () => string;
   worktreeManager?: WorktreeManager;
   sessionManager?: OpencodeSessionManager;
-  /** Base URL for the OpenCode server (required) */
   opencodeBaseUrl: string;
 }
 
