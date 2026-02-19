@@ -80,7 +80,7 @@ describe("OpencodeSessionManager", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      const session = await sessionManager.createSession("task-1", {});
+      const session = await sessionManager.createSession("task-1");
 
       expect(session.sessionId).toBe("session-123");
       expect(session.taskId).toBe("task-1");
@@ -101,7 +101,7 @@ describe("OpencodeSessionManager", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      await sessionManager.createSession("task-2", {});
+      await sessionManager.createSession("task-2");
 
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         query: { directory: "/test/sessions/task-2" },
@@ -117,7 +117,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-3", {})
+        sessionManager.createSession("task-3")
       ).rejects.toThrow("Session for task task-3 already exists");
     });
 
@@ -129,7 +129,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-4", {})
+        sessionManager.createSession("task-4")
       ).rejects.toThrow("Failed to create session");
     });
 
@@ -141,7 +141,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-5", {})
+        sessionManager.createSession("task-5")
       ).rejects.toThrow("Failed to get session ID from create response");
     });
 
@@ -152,7 +152,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      const session = await sessionManager.createSession("task-6", {});
+      const session = await sessionManager.createSession("task-6");
 
       expect(session.sessionId).toBe("nested-session-123");
     });
@@ -164,7 +164,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      const session = await sessionManager.createSession("task-7", {});
+      const session = await sessionManager.createSession("task-7");
 
       expect(session.sessionId).toBe("alt-session-123");
     });
@@ -181,7 +181,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      await sessionManager.createSession("task-8", {});
+      await sessionManager.createSession("task-8");
 
       expect(mocks.mockMkdirSync).toHaveBeenCalledWith(
         "/test/sessions/task-8",

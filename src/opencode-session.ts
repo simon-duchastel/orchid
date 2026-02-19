@@ -24,10 +24,6 @@ export interface AgentSession {
   status: "running" | "stopping" | "stopped";
 }
 
-export interface CreateSessionOptions {
-  // No options needed - title is always set to taskId
-}
-
 export interface OpencodeSessionManagerOptions {
   /** Base directory for all sessions (typically the worktrees directory) */
   sessionsDir: string;
@@ -61,15 +57,12 @@ export class OpencodeSessionManager {
    * Create a new OpenCode session for an agent.
    *
    * @param taskId - The task ID (used as the session identifier base)
-   * @param options - Configuration options for the session
    * @returns The created session info
    * @throws Error if session already exists or creation fails
    */
-  async createSession(
-    taskId: string,
-    options: CreateSessionOptions
-  ): Promise<AgentSession> {
-    // Check if session already exists
+
+  async createSession(taskId: string): Promise<AgentSession> {
+    // Check if session already exists by querying the server
     const existingSession = await this.getSession(taskId);
     if (existingSession) {
       throw new Error(`Session for task ${taskId} already exists`);

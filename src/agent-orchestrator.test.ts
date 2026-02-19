@@ -516,10 +516,7 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      expect(mocks.mockSessionCreate).toHaveBeenCalledWith(
-        "task-session",
-        {}
-      );
+      expect(mocks.mockSessionCreate).toHaveBeenCalledWith("task-session");
 
       const agents = orchestrator.getRunningAgents();
       expect(agents[0].session).toBeDefined();
