@@ -15,10 +15,11 @@ const mocks = vi.hoisted(() => {
   const mockHasSession = vi.fn();
   const mockGetSession = vi.fn();
   const mockRecoverSessions = vi.fn();
+  const mockSendMessage = vi.fn();
   
   class MockTaskManager {
     listTaskStream = mockListTaskStream;
-    list = mockListTasks;
+    listTasks = mockListTasks;
     assignTask = mockAssignTask;
     unassignTask = mockUnassignTask;
   }
@@ -30,6 +31,7 @@ const mocks = vi.hoisted(() => {
     hasSession = mockHasSession;
     getSession = mockGetSession;
     recoverSessions = mockRecoverSessions;
+    sendMessage = mockSendMessage;
   }
   
   return {
@@ -46,6 +48,7 @@ const mocks = vi.hoisted(() => {
     mockHasSession,
     mockGetSession,
     mockRecoverSessions,
+    mockSendMessage,
     MockTaskManager,
     MockSessionManager,
   };
@@ -97,9 +100,11 @@ describe("AgentOrchestrator", () => {
       hasSession: mocks.mockHasSession,
       getSession: mocks.mockGetSession,
       recoverSessions: mocks.mockRecoverSessions,
+      sendMessage: mocks.mockSendMessage,
     };
     mocks.mockRecoverSessions.mockResolvedValue([]);
     mocks.mockListTasks.mockResolvedValue([]);
+    mocks.mockSendMessage.mockResolvedValue(undefined);
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
       sessionManager: mockSessionManager,
@@ -167,12 +172,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockWorktreeRemove.mockResolvedValue(true);
       mocks.mockSessionCreate.mockResolvedValue({
         sessionId: "session-stop",
-        taskId: "task-stop",
-        workingDirectory: "/test/worktrees/task-stop",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -203,6 +211,9 @@ describe("AgentOrchestrator", () => {
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -232,6 +243,9 @@ describe("AgentOrchestrator", () => {
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const task = { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" };
       const streamIterator = (async function* () {
@@ -261,6 +275,9 @@ describe("AgentOrchestrator", () => {
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -282,12 +299,16 @@ describe("AgentOrchestrator", () => {
       mocks.mockWorktreeRemove.mockResolvedValue(true);
       mocks.mockSessionCreate.mockResolvedValue({
         sessionId: "session-test",
-        taskId: "task-test",
-        workingDirectory: "/test/worktrees/task-test",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-1", frontmatter: { title: "Test 1" }, description: "", status: "open" },
+        { id: "task-2", frontmatter: { title: "Test 2" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [
@@ -321,6 +342,9 @@ describe("AgentOrchestrator", () => {
         status: "running",
       });
 
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
       const streamIterator = (async function* () {
         yield [{ id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" }];
       })();
@@ -353,6 +377,9 @@ describe("AgentOrchestrator", () => {
         status: "running",
       });
 
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
       const streamIterator = (async function* () {
         yield [{ id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" }];
         yield [];
@@ -382,6 +409,9 @@ describe("AgentOrchestrator", () => {
         status: "running",
       });
 
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-456", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
       const streamIterator = (async function* () {
         yield [{ id: "task-456", frontmatter: { title: "Test" }, description: "", status: "open" }];
         yield [];
@@ -410,6 +440,9 @@ describe("AgentOrchestrator", () => {
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-789", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-789", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -451,6 +484,10 @@ describe("AgentOrchestrator", () => {
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-alpha", frontmatter: { title: "Alpha" }, description: "", status: "open" },
+        { id: "task-beta", frontmatter: { title: "Beta" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [
@@ -507,6 +544,9 @@ describe("AgentOrchestrator", () => {
         createdAt: new Date(),
         status: "running",
       });
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-session", frontmatter: { title: "Test Session" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-session", frontmatter: { title: "Test Session" }, description: "", status: "open" }];
@@ -537,6 +577,9 @@ describe("AgentOrchestrator", () => {
         status: "running",
       });
       mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-stop", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-stop", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -585,6 +628,9 @@ describe("AgentOrchestrator", () => {
         status: "running",
       });
       mocks.mockSessionRemove.mockRejectedValue(new Error("Session removal failed"));
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-fail-remove", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -620,6 +666,9 @@ describe("AgentOrchestrator", () => {
         status: "running",
       });
       mocks.mockSessionStopAll.mockResolvedValue(undefined);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-stop-all", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-stop-all", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -647,6 +696,9 @@ describe("AgentOrchestrator", () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-info", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-info", frontmatter: { title: "Test" }, description: "", status: "open" }];
