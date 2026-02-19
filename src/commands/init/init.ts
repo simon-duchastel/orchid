@@ -15,6 +15,7 @@ import {
   getMainRepoDir,
   getWorktreesDir,
 } from "../../paths";
+import { isInitialized as isDysonSwarmInitialized, initialize as initializeDysonSwarm } from "dyson-swarm";
 
 /**
  * Check if a directory is empty
@@ -193,6 +194,12 @@ export async function initializeOrchid(
   }
 
   try {
+    // Check if dyson-swarm is initialized, and initialize it if not
+    const dysonSwarmInitialized = await isDysonSwarmInitialized();
+    if (!dysonSwarmInitialized) {
+      await initializeDysonSwarm();
+    }
+
     // Clone repository to main directory
     const mainRepoDir = getMainRepoDir();
     const cloneResult = await cloneRepository(repoUrl, mainRepoDir, gitOps);
