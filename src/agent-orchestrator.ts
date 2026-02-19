@@ -9,12 +9,18 @@
 
 import { TaskManager, type Task } from "dyson-swarm";
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { WorktreeManager } from "./worktrees/index.js";
 import { getWorktreesDir } from "./paths.js";
 import {
   OpencodeSessionManager,
   type AgentSession,
 } from "./opencode-session.js";
+
+const AGENT_PROMPT_TEMPLATE = readFileSync(
+  join(process.cwd(), "templates", "agent-prompt.md"),
+  "utf-8"
+);
 
 export interface AgentInfo {
   taskId: string;
@@ -131,6 +137,13 @@ export class AgentOrchestrator {
     const agentId = `${taskId}-implementor`;
     console.log(`[orchestrator] Starting implementor agent for task ${taskId}`);
 
+    // Get task details
+    const tasks = await this.taskManager.listTasks({ status: "open" });
+    const task = tasks.find((t: Task) => t.id === taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
     const worktreesDir = getWorktreesDir(this.cwdProvider);
     const worktreePath = join(worktreesDir, taskId);
 
@@ -154,6 +167,35 @@ export class AgentOrchestrator {
         await this.worktreeManager.remove(worktreePath, { force: true });
       } catch (cleanupError) {
         console.error(`[orchestrator] Failed to clean up worktree after session creation failed:`, cleanupError);
+      }
+      throw error;
+    }
+
+    // Send initial message to the session
+    try {
+      const promptMessage = AGENT_PROMPT_TEMPLATE
+        .replace(/\{\{taskTitle\}\}/g, task.frontmatter.title || "")
+        .replace(/\{\{taskDescription\}\}/g, task.description || "")
+        .replace(/\{\{worktreePath\}\}/g, worktreePath);
+
+      await this.sessionManager.sendMessage(
+        session.sessionId,
+        promptMessage,
+        worktreePath
+      );
+      console.log(`[orchestrator] Sent initial message to session ${session.sessionId} for task ${taskId}`);
+    } catch (error) {
+      console.error(`[orchestrator] Failed to send initial message for task ${taskId}:`, error);
+      // Clean up session and worktree since message sending failed
+      try {
+        await this.sessionManager.removeSession(taskId);
+      } catch (cleanupError) {
+        console.error(`[orchestrator] Failed to clean up session after message sending failed:`, cleanupError);
+      }
+      try {
+        await this.worktreeManager.remove(worktreePath, { force: true });
+      } catch (cleanupError) {
+        console.error(`[orchestrator] Failed to clean up worktree after message sending failed:`, cleanupError);
       }
       throw error;
     }

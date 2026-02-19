@@ -265,4 +265,41 @@ export class OpencodeSessionManager {
     );
   }
 
+  /**
+   * Send a message to a session.
+   *
+   * @param sessionId - The session ID
+   * @param message - The message text to send
+   * @param workingDirectory - The working directory for the session
+   * @throws Error if message sending fails
+   */
+  async sendMessage(
+    sessionId: string,
+    message: string,
+    workingDirectory: string
+  ): Promise<void> {
+    try {
+      await this.client.session.prompt({
+        path: {
+          id: sessionId,
+        },
+        query: {
+          directory: workingDirectory,
+        },
+        body: {
+          parts: [
+            {
+              type: "text",
+              text: message,
+            },
+          ],
+        },
+      });
+    } catch (error) {
+      throw new Error(
+        `Failed to send message to session ${sessionId}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+
 }
