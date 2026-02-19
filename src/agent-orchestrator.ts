@@ -186,7 +186,18 @@ export class AgentOrchestrator {
       console.log(`[orchestrator] Sent initial message to session ${session.sessionId} for task ${taskId}`);
     } catch (error) {
       console.error(`[orchestrator] Failed to send initial message for task ${taskId}:`, error);
-      // Continue even if message sending fails - the session is still usable
+      // Clean up session and worktree since message sending failed
+      try {
+        await this.sessionManager.removeSession(taskId);
+      } catch (cleanupError) {
+        console.error(`[orchestrator] Failed to clean up session after message sending failed:`, cleanupError);
+      }
+      try {
+        await this.worktreeManager.remove(worktreePath, { force: true });
+      } catch (cleanupError) {
+        console.error(`[orchestrator] Failed to clean up worktree after message sending failed:`, cleanupError);
+      }
+      throw error;
     }
 
     await this.taskManager.assignTask(taskId, agentId);
