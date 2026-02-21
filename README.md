@@ -54,6 +54,16 @@ npm run build
 npm start
 ```
 
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) directory:
+
+- **[Architecture](./docs/architecture.md)** - System design and component interactions
+- **[Testing](./docs/testing.md)** - Testing strategies and patterns
+- **[Code Principles](./docs/code-principles.md)** - Coding standards and design patterns
+- **[CLI Philosophy](./docs/cli-philosophy.md)** - CLI design principles
+- **[Best Practices](./docs/best-practices.md)** - Development guidelines
+
 ## License
 
 MIT
