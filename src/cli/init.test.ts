@@ -10,7 +10,7 @@ const { mockConfirmPrompt } = vi.hoisted(() => ({
   mockConfirmPrompt: vi.fn(),
 }));
 
-vi.mock("../init/index.js", () => ({
+vi.mock("../orchid-lifecycle/index.js", () => ({
   initializeOrchid: mockInitializeOrchid,
   isDirectoryEmpty: mockIsDirectoryEmpty,
 }));
