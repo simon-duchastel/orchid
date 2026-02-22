@@ -15,7 +15,7 @@ import {
   OpencodeSessionManager,
   type AgentSession,
 } from "./opencode-session.js";
-import { fillAgentPromptTemplate } from "./templates.js";
+import { fillAgentPromptTemplate } from "./templates/index.js";
 import { log } from "./utils/logger.js";
 import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";
 

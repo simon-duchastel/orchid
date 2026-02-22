@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fillAgentPromptTemplate } from "../../templates.js";
+import { fillAgentPromptTemplate } from "../../templates/index.js";
 
 describe("fillAgentPromptTemplate", () => {
   it("should correctly fill the agent prompt template", () => {
