@@ -18,6 +18,7 @@ import {
 import { fillAgentPromptTemplate } from "./templates.js";
 import { log } from "./utils/logger.js";
 import { ReviewAgent } from "./review-agent.js";
+import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";
 
 export interface AgentInfo {
   taskId: string;
@@ -44,6 +45,7 @@ export class AgentOrchestrator {
   private sessionManager: OpencodeSessionManager;
   private cwdProvider: () => string;
   private reviewAgent: ReviewAgent;
+  private eventStreamAbortController: AbortController | null = null;
 
   constructor(options: AgentOrchestratorOptions) {
     this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
@@ -57,10 +59,8 @@ export class AgentOrchestrator {
       baseUrl: options.opencodeBaseUrl,
     });
 
-    // Initialize review agent for monitoring idle sessions
-    this.reviewAgent = options.reviewAgent ?? new ReviewAgent({
-      sessionManager: this.sessionManager,
-    });
+    // Initialize review agent
+    this.reviewAgent = options.reviewAgent ?? new ReviewAgent();
   }
 
   async start(): Promise<void> {
@@ -71,6 +71,9 @@ export class AgentOrchestrator {
 
     this.abortController = new AbortController();
     log.log("[orchestrator] Starting task monitor...");
+
+    // Start listening for OpenCode events (including session.idle)
+    this.startEventListener();
 
     try {
       const stream = this.taskManager.listTaskStream({ status: "open" });
@@ -90,6 +93,83 @@ export class AgentOrchestrator {
     }
   }
 
+  /**
+   * Start listening to OpenCode global events for session idle notifications.
+   * This uses server-sent events from the OpenCode SDK.
+   */
+  private async startEventListener(): Promise<void> {
+    if (this.eventStreamAbortController) {
+      return;
+    }
+
+    this.eventStreamAbortController = new AbortController();
+    const client = this.sessionManager.getClient();
+
+    try {
+      log.log("[orchestrator] Starting OpenCode event listener...");
+      
+      // Subscribe to global events
+      const result = await client.global.event();
+      
+      // Process events from the stream
+      for await (const event of result.stream) {
+        if (this.eventStreamAbortController.signal.aborted) {
+          break;
+        }
+
+        await this.handleEvent(event as GlobalEvent);
+      }
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        log.log("[orchestrator] Event listener aborted");
+      } else {
+        log.error("[orchestrator] Error in event listener:", error);
+      }
+    }
+  }
+
+  /**
+   * Handle an OpenCode event.
+   * Currently only handles session.idle events to trigger review.
+   *
+   * @param event - The event from OpenCode
+   */
+  private async handleEvent(event: GlobalEvent): Promise<void> {
+    if (!event.payload) {
+      return;
+    }
+
+    // Check if this is a session.idle event
+    if (event.payload.type === "session.idle") {
+      const idleEvent = event.payload as EventSessionIdle;
+      const sessionId = idleEvent.properties.sessionID;
+      
+      log.log(`[orchestrator] Session ${sessionId} became idle`);
+      
+      // Find the agent running this session
+      const agent = this.findAgentBySessionId(sessionId);
+      if (agent && agent.session) {
+        log.log(`[orchestrator] Triggering review for task ${agent.taskId}`);
+        await this.reviewAgent.invokeReview(agent.session);
+      }
+    }
+  }
+
+  /**
+   * Find an agent by its session ID.
+   *
+   * @param sessionId - The OpenCode session ID
+   * @returns The agent info or undefined if not found
+   */
+  private findAgentBySessionId(sessionId: string): AgentInfo | undefined {
+    for (const agent of this.runningAgents.values()) {
+      if (agent.session?.sessionId === sessionId) {
+        return agent;
+      }
+    }
+    return undefined;
+  }
+
   async stop(): Promise<void> {
     if (!this.abortController) {
       return;
@@ -99,20 +179,19 @@ export class AgentOrchestrator {
     this.abortController.abort();
     this.abortController = null;
 
+    // Stop event listener
+    if (this.eventStreamAbortController) {
+      this.eventStreamAbortController.abort();
+      this.eventStreamAbortController = null;
+      log.log("[orchestrator] Event listener stopped");
+    }
+
     log.log("[orchestrator] Stopping all running agents...");
     for (const [taskId, agent] of this.runningAgents) {
       await this.stopAgent(taskId);
     }
 
     this.runningAgents.clear();
-    
-    // Stop all review agent monitoring
-    try {
-      this.reviewAgent.stopAllMonitoring();
-      log.log("[orchestrator] All review agent monitoring stopped");
-    } catch (error) {
-      log.error("[orchestrator] Error stopping review agent monitoring:", error);
-    }
     
     // Stop all remaining sessions (in case any weren't cleaned up)
     try {
@@ -224,9 +303,6 @@ export class AgentOrchestrator {
       session,
     });
 
-    // Start monitoring for idle state to trigger review agent
-    await this.reviewAgent.startMonitoring(session);
-
     log.log(`[orchestrator] Agent ${agentId} started for task ${taskId}`);
   }
 
@@ -238,11 +314,6 @@ export class AgentOrchestrator {
 
     agent.status = "stopping";
     log.log(`[orchestrator] Stopping agent ${agent.agentId} for task ${taskId}`);
-
-    // Stop monitoring for idle state
-    if (agent.session) {
-      this.reviewAgent.stopMonitoring(agent.session.sessionId);
-    }
 
     // Remove the OpenCode session if it exists
     if (agent.session) {
