@@ -1,3 +1,5 @@
+![Satellites in space](assets/images/satellites-header.avif)
+
 # Orchid
 
 > **Orchid** helps you orchidstrate (like orchestrate) AI agents in the background.
