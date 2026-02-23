@@ -2,7 +2,9 @@
 
 ## Overview
 
-Orchid helps you orchestrate AI agents in the background. It manages a background daemon that runs an OpenCode server, which allows you to orchestrate many parallel AI tasks in the background. Let your code blossom into a beautiful flower while you sleep!
+Orchid helps you orchestrate AI agents in the background. It manages a background daemon that runs an OpenCode server, which allows you to orchestrate many parallel AI tasks in the background.
+
+Let your code blossom into a beautiful flower while you sleep!
 
 ## Installation
 
