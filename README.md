@@ -5,7 +5,7 @@
 
 </div>
 
-![Satellites in space](assets/images/satellites-header.avif)
+![Satellites in space](assets/images/orchid-banner.avif)
 
 
 ## Overview
