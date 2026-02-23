@@ -1,16 +1,8 @@
-<div align="center">
-  
-<h1>Orchid</h1>
-<p>Orchid helps you orchestrate AI agents in the background.</p>
-
-</div>
-
-![Satellites in space](assets/images/orchid-banner.avif)
-
+![Orchid banner](assets/images/orchid-banner.avif)
 
 ## Overview
 
-Orchid (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to orchestrate AI tasks in the background without blocking your terminal.
+Orchid helps you orchestrate AI agents in the background. It manages a background daemon that runs an OpenCode server, which allows you to orchestrate many parallel AI tasks in the background. Let your code blossom into a beautiful flower while you sleep!
 
 ## Installation
 
