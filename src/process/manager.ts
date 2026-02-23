@@ -16,10 +16,10 @@ import {
   getDirectoryPort,
   getOrchidDir,
   getMainRepoDir,
-} from "./paths";
-import { validateOrchidStructure } from "./orchid-lifecycle/index.js";
-import { findAvailablePort } from "./core/networking/index.js";
-import { generateServerCredentials } from "./core/credentials/index.js";
+} from "../config/paths.js";
+import { validateOrchidStructure } from "../orchid-lifecycle/index.js";
+import { findAvailablePort } from "../core/networking/index.js";
+import { generateServerCredentials } from "../core/credentials/index.js";
 
 /**
  * Check if a process with the given PID is running
@@ -138,10 +138,10 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   }
 
   // Find the daemon script
-  // In development, it's at src/daemon.ts (run via tsx)
-  // In production, it's at dist/daemon.js
+  // In development, it's at src/main.ts (run via tsx)
+  // In production, it's at dist/main.js
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const daemonScript = join(__dirname, "daemon.js");
+  const daemonScript = join(__dirname, "..", "main.js");
   const isDev = !existsSync(daemonScript);
 
   // Open log files
@@ -163,7 +163,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
 
     if (isDev) {
       // Development mode - use tsx
-      const devDaemonScript = join(__dirname, "daemon.ts");
+      const devDaemonScript = join(__dirname, "..", "main.ts");
       child = spawn("npx", ["tsx", devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],

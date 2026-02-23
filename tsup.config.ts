@@ -13,7 +13,7 @@ export default defineConfig([
     },
   },
   {
-    entry: { daemon: "src/daemon.ts" },
+    entry: { main: "src/main.ts" },
     format: ["esm"],
     target: "node20",
     sourcemap: true,
