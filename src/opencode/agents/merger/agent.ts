@@ -7,7 +7,7 @@
  * Worktree is managed by the orchestrator.
  */
 
-import { OpencodeSessionManager, type AgentSession } from "../../../agent-interface/index.js";
+import type { AgentSession, SessionManagerInterface } from "../../../agent-interface/index.js";
 import { fillMergerPromptTemplate } from "../../../templates/index.js";
 import { log } from "../../../core/logging/index.js";
 
@@ -15,7 +15,7 @@ export interface MergerAgentOptions {
   taskId: string;
   worktreePath: string;
   session: AgentSession;
-  sessionManager: OpencodeSessionManager;
+  sessionManager: SessionManagerInterface;
   onComplete: (taskId: string, session: AgentSession) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -36,7 +36,7 @@ export class MergerAgentImpl implements MergerAgent {
   readonly taskId: string;
   private worktreePath: string;
   private session: AgentSession;
-  private sessionManager: OpencodeSessionManager;
+  private sessionManager: SessionManagerInterface;
   private onComplete: (taskId: string, session: AgentSession) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
