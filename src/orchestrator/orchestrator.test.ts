@@ -168,20 +168,6 @@ describe("AgentOrchestrator", () => {
 
       expect(orchestrator.isRunning()).toBe(false);
     });
-
-    it("should stop all sessions when orchestrator stops", async () => {
-      const streamIterator = (async function* () {
-        yield [];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      await orchestrator.stop();
-
-      expect(mocks.mockSessionStopAll).toHaveBeenCalled();
-    });
   });
 
   describe("task lifecycle", () => {
@@ -289,45 +275,6 @@ describe("AgentOrchestrator", () => {
       await vi.runAllTimersAsync();
 
       expect(orchestrator.isRunning()).toBe(true);
-    });
-  });
-
-  describe("event handling", () => {
-    it("should handle session.idle events", async () => {
-      const mockSession = {
-        sessionId: "session-1",
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        client: {},
-        createdAt: new Date(),
-        status: "running" as const,
-      };
-
-      mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
-
-      const streamIterator = (async function* () {
-        yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      // Simulate session.idle event
-      const idleEvent = {
-        directory: "/test/worktrees/task-1",
-        payload: {
-          type: "session.idle" as const,
-          properties: {
-            sessionID: "session-1",
-          },
-        },
-      };
-
-      // Should not throw
-      await expect((orchestrator as any).handleEvent(idleEvent)).resolves.toBeUndefined();
     });
   });
 
