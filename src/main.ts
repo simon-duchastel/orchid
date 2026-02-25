@@ -39,19 +39,15 @@ async function main() {
     log.log(`[orchid] OpenCode server running at ${serverInstance.info.url}`);
     log.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
-    const mainRepoDir = getMainRepoDir();
-    // TODO: Initialize session manager (will be done in future PR)
-    // For now, we need to pass a session manager to the orchestrator
+    // TODO: Initialize session manager and orchestrator (will be done in future PR)
     // orchestrator = new AgentOrchestrator({
     //   cwdProvider: () => mainRepoDir,
     //   sessionManager: sessionManager,
     // });
+    // orchestrator.start().catch((err: Error) => {
+    //   log.error("[orchid] Orchestrator error:", err);
+    // });
     log.log("[orchid] Agent orchestrator initialization skipped (TODO: pass session manager)");
-
-    orchestrator.start().catch((err: Error) => {
-      log.error("[orchid] Orchestrator error:", err);
-    });
-    log.log("[orchid] Agent orchestrator started");
 
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {

@@ -5,11 +5,12 @@
  * Wraps OpencodeSessionManager to provide a unified interface.
  */
 
-import { OpencodeSessionManager } from "../../opencode/session/index.js";
+import { OpencodeSessionManager } from "../opencode/session-manager.js";
 import {
   type SessionManagerInterface,
   type AgentSession,
   type SessionIdleCallback,
+  type CreateSessionOptions,
 } from "../types.js";
 
 export interface OpencodeSessionAdapterOptions {
@@ -37,8 +38,8 @@ export class OpencodeSessionAdapter implements SessionManagerInterface {
   /**
    * Create a new session for an agent.
    */
-  async createSession(taskId: string): Promise<AgentSession> {
-    return this.manager.createSession(taskId);
+  async createSession(options: CreateSessionOptions): Promise<AgentSession> {
+    return this.manager.createSession(options);
   }
 
   /**
