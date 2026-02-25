@@ -1,31 +1,29 @@
 /**
- * Implementor Agent
+ * Reviewer Agent
  *
- * Handles the implementation phase of a task.
+ * Handles the review phase of a task.
  * Sends initial prompt to an existing session in a pre-created worktree.
  * Reports back to orchestrator when complete.
  * Worktree and session are managed by the orchestrator.
  */
 
-import { TaskManager, type Task as DysonTask } from "dyson-swarm";
-import { type AgentSession } from "../../../agent-interface/types.js";
-import type { SessionManagerInterface } from "../../../agent-interface/index.js";
-import { fillAgentPromptTemplate } from "../../../templates/index.js";
-import { log } from "../../../core/logging/index.js";
-import type { Task } from "../../../tasks/index.js";
+import { type Task as DysonTask } from "dyson-swarm";
+import { type AgentSession } from "../agent-interface/types.js";
+import type { SessionManagerInterface } from "../agent-interface/index.js";
+import { fillReviewerPromptTemplate } from "../templates/index.js";
+import { log } from "../core/logging/index.js";
 
-export interface ImplementorAgentOptions {
+export interface ReviewerAgentOptions {
   taskId: string;
   dysonTask: DysonTask;
   worktreePath: string;
   session: AgentSession;
   sessionManager: SessionManagerInterface;
-  taskManager: TaskManager;
   onComplete: (taskId: string, session: AgentSession) => void;
   onError: (taskId: string, error: Error) => void;
 }
 
-export interface ImplementorAgent {
+export interface ReviewerAgent {
   readonly agentId: string;
   readonly taskId: string;
   start(): Promise<void>;
@@ -34,65 +32,59 @@ export interface ImplementorAgent {
 }
 
 /**
- * ImplementorAgent handles the implementation phase of a task.
- * Created per-task and destroyed when implementation is complete.
+ * ReviewerAgent handles the review phase of a task.
+ * Created per-task and destroyed when review is complete.
  * Worktree and session are provided by the orchestrator.
  */
-export class ImplementorAgentImpl implements ImplementorAgent {
+export class ReviewerAgentImpl implements ReviewerAgent {
   readonly agentId: string;
   readonly taskId: string;
   private dysonTask: DysonTask;
   private worktreePath: string;
   private session: AgentSession;
   private sessionManager: SessionManagerInterface;
-  private taskManager: TaskManager;
   private onComplete: (taskId: string, session: AgentSession) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
 
-  constructor(options: ImplementorAgentOptions) {
+  constructor(options: ReviewerAgentOptions) {
     this.taskId = options.taskId;
-    this.agentId = `${options.taskId}-implementor`;
+    this.agentId = `${options.taskId}-reviewer`;
     this.dysonTask = options.dysonTask;
     this.worktreePath = options.worktreePath;
     this.session = options.session;
     this.sessionManager = options.sessionManager;
-    this.taskManager = options.taskManager;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
 
   /**
-   * Start the implementor agent.
-   * Assigns task first, then sends initial prompt.
+   * Start the reviewer agent.
+   * Sends initial prompt to begin the review.
    */
   async start(): Promise<void> {
     if (this._isRunning) {
-      log.log(`[implementor] Agent ${this.agentId} already running`);
+      log.log(`[reviewer] Agent ${this.agentId} already running`);
       return;
     }
 
     this._isRunning = true;
-    log.log(`[implementor] Starting agent ${this.agentId} for task ${this.taskId}`);
+    log.log(`[reviewer] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
-      // Assign task in dyson-swarm first to prevent conflicts
-      await this.assignTask();
-      
       // Send initial prompt
       await this.sendInitialPrompt();
       
-      log.log(`[implementor] Agent ${this.agentId} started successfully`);
+      log.log(`[reviewer] Agent ${this.agentId} started successfully`);
     } catch (error) {
-      log.error(`[implementor] Failed to start agent ${this.agentId}:`, error);
-      await this.cleanup();
+      log.error(`[reviewer] Failed to start agent ${this.agentId}:`, error);
       this._isRunning = false;
       this.onError(this.taskId, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
-   * Stop the implementor agent.
+   * Stop the reviewer agent.
    * Note: Session and worktree cleanup are handled by the orchestrator.
    */
   async stop(): Promise<void> {
@@ -100,9 +92,9 @@ export class ImplementorAgentImpl implements ImplementorAgent {
       return;
     }
 
-    log.log(`[implementor] Stopping agent ${this.agentId}`);
+    log.log(`[reviewer] Stopping agent ${this.agentId}`);
     this._isRunning = false;
-    log.log(`[implementor] Agent ${this.agentId} stopped`);
+    log.log(`[reviewer] Agent ${this.agentId} stopped`);
   }
 
   /**
@@ -123,7 +115,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
    * Handle session idle event - called by orchestrator when session becomes idle
    */
   async handleSessionIdle(): Promise<void> {
-    log.log(`[implementor] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
+    log.log(`[reviewer] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
     
     this._isRunning = false;
     
@@ -133,7 +125,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
 
   private async sendInitialPrompt(): Promise<void> {
     try {
-      const promptMessage = fillAgentPromptTemplate({
+      const promptMessage = fillReviewerPromptTemplate({
         taskTitle: this.dysonTask.frontmatter.title || "",
         taskDescription: this.dysonTask.description || "",
         worktreePath: this.worktreePath,
@@ -144,7 +136,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
         promptMessage,
         this.worktreePath
       );
-      log.log(`[implementor] Sent initial prompt`);
+      log.log(`[reviewer] Sent initial prompt`);
     } catch (error) {
       throw new Error(
         `Failed to send initial prompt: ${error instanceof Error ? error.message : String(error)}`
@@ -152,29 +144,11 @@ export class ImplementorAgentImpl implements ImplementorAgent {
     }
   }
 
-  private async assignTask(): Promise<void> {
-    try {
-      await this.taskManager.assignTask(this.taskId, this.agentId);
-      log.log(`[implementor] Assigned task ${this.taskId} to agent ${this.agentId}`);
-    } catch (error) {
-      // Don't fail if assignment fails - it's optional
-      log.warn(`[implementor] Failed to assign task: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  private async cleanup(): Promise<void> {
-    // Unassign task - this is handled by the agent
-    try {
-      await this.taskManager.unassignTask(this.taskId);
-    } catch (error) {
-      log.error(`[implementor] Failed to unassign task:`, error);
-    }
-  }
 }
 
 /**
- * Factory function to create an ImplementorAgent
+ * Factory function to create a ReviewerAgent
  */
-export function createImplementorAgent(options: ImplementorAgentOptions): ImplementorAgent {
-  return new ImplementorAgentImpl(options);
+export function createReviewerAgent(options: ReviewerAgentOptions): ReviewerAgent {
+  return new ReviewerAgentImpl(options);
 }

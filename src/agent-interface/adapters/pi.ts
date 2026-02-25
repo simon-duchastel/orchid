@@ -172,6 +172,33 @@ export class PiSessionAdapter implements SessionManagerInterface {
   }
 
   /**
+   * Remove a session.
+   */
+  async removeSession(taskId: string): Promise<void> {
+    const sessionInfo = this.sessions.get(taskId);
+    if (!sessionInfo) {
+      throw new Error(`Session for task ${taskId} not found`);
+    }
+
+    // Unsubscribe from events
+    sessionInfo.unsubscribe();
+
+    // Remove from sessions map
+    this.sessions.delete(taskId);
+  }
+
+  /**
+   * Stop all active sessions.
+   */
+  async stopAllSessions(): Promise<void> {
+    for (const [taskId, sessionInfo] of this.sessions) {
+      // Unsubscribe from events
+      sessionInfo.unsubscribe();
+    }
+    this.sessions.clear();
+  }
+
+  /**
    * Register a callback for session idle events.
    * For Pi, this is triggered when the agent finishes processing (message_end event).
    */

@@ -1,7 +1,7 @@
 /**
  * Agent Session Interface Types
  *
- * Abstracts both opencode (HTTP server) and pi (SDK) session management approaches.
+ * Abstracts different session management approaches.
  * YAGNI - only includes methods and types currently used by agents.
  */
 
@@ -38,7 +38,7 @@ export interface CreateSessionOptions {
 
 /**
  * Interface for session managers.
- * Abstracts both opencode and pi implementations.
+ * Abstracts different AI agent implementations.
  */
 export interface SessionManagerInterface {
   /**
@@ -71,6 +71,19 @@ export interface SessionManagerInterface {
     message: string,
     workingDirectory: string
   ): Promise<void>;
+
+  /**
+   * Remove a session.
+   *
+   * @param taskId - The task identifier
+   * @throws Error if session doesn't exist
+   */
+  removeSession(taskId: string): Promise<void>;
+
+  /**
+   * Stop all active sessions.
+   */
+  stopAllSessions(): Promise<void>;
 
   /**
    * Register a callback for session idle events.

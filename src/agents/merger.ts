@@ -7,9 +7,9 @@
  * Worktree is managed by the orchestrator.
  */
 
-import type { AgentSession, SessionManagerInterface } from "../../../agent-interface/index.js";
-import { fillMergerPromptTemplate } from "../../../templates/index.js";
-import { log } from "../../../core/logging/index.js";
+import type { AgentSession, SessionManagerInterface } from "../agent-interface/index.js";
+import { fillMergerPromptTemplate } from "../templates/index.js";
+import { log } from "../core/logging/index.js";
 
 export interface MergerAgentOptions {
   taskId: string;
