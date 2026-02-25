@@ -1,17 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { dashboardAction } from './dashboard.js';
 
-const { mockGetStatus, mockOpen } = vi.hoisted(() => ({
+const { mockGetStatus } = vi.hoisted(() => ({
   mockGetStatus: vi.fn(),
-  mockOpen: vi.fn(),
 }));
 
 vi.mock("../process/manager.js", () => ({
   getStatus: mockGetStatus,
-}));
-
-vi.mock("open", () => ({
-  default: mockOpen,
 }));
 
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -25,24 +20,22 @@ describe('dashboard command', () => {
     vi.clearAllMocks();
   });
 
-  it('should open dashboard when running', async () => {
+  it('should show dashboard not available when running', async () => {
     mockGetStatus.mockReturnValue({
       running: true,
       pid: 12345,
-      serverUrl: 'http://127.0.0.1:3000',
     });
 
     await dashboardAction();
 
-    expect(mockConsoleLog).toHaveBeenCalledWith('Opening http://127.0.0.1:3000 in your browser...');
-    expect(mockOpen).toHaveBeenCalledWith('http://127.0.0.1:3000');
+    expect(mockConsoleLog).toHaveBeenCalledWith('Dashboard is not available when running without a web server.');
+    expect(mockConsoleLog).toHaveBeenCalledWith('Orchid is running (PID: 12345)');
   });
 
   it('should exit with code 1 when not running', async () => {
     mockGetStatus.mockReturnValue({
       running: false,
       pid: null,
-      serverUrl: null,
     });
 
     await expect(dashboardAction()).rejects.toThrow('process.exit called');

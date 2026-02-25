@@ -1,17 +1,16 @@
 import { Command } from "@cliffy/command";
-import open from "open";
 import { getStatus } from "../process/manager.js";
 
 export async function dashboardAction() {
   const status = getStatus();
-  if (!status.running || !status.serverUrl) {
+  if (!status.running) {
     console.error("Orchid is not running. Start it with: orchid up");
     process.exit(1);
   }
-  console.log(`Opening ${status.serverUrl} in your browser...`);
-  await open(status.serverUrl);
+  console.log("Dashboard is not available when running without a web server.");
+  console.log(`Orchid is running (PID: ${status.pid})`);
 }
 
 export const dashboardCommand: any = new Command()
-  .description("Open the orchid web UI in your browser")
+  .description("Show orchid status")
   .action(dashboardAction);
