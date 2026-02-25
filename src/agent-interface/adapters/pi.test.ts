@@ -1,13 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock the Pi SDK
-const mockAgentSend = vi.fn();
+const mockPrompt = vi.fn();
 const mockSubscribe = vi.fn();
-const mockAgent = {
-  send: mockAgentSend,
-};
 const mockPiSession = {
-  agent: mockAgent,
+  prompt: mockPrompt,
   subscribe: mockSubscribe,
 };
 const mockCreateAgentSession = vi.fn();
@@ -178,10 +175,7 @@ describe("PiSessionAdapter", () => {
     it("should send message to session", async () => {
       await adapter.sendMessage(createdSessionId, "Hello Pi", "/test/sessions/task-1");
 
-      expect(mockAgentSend).toHaveBeenCalledWith({
-        role: "user",
-        content: [{ type: "text", text: "Hello Pi" }],
-      });
+      expect(mockPrompt).toHaveBeenCalledWith("Hello Pi");
     });
 
     it("should throw error if session not found", async () => {
@@ -190,10 +184,8 @@ describe("PiSessionAdapter", () => {
       ).rejects.toThrow("Session nonexistent-session not found");
     });
 
-    it("should throw error if send fails", async () => {
-      mockAgentSend.mockImplementation(() => {
-        throw new Error("Send Error");
-      });
+    it("should throw error if prompt fails", async () => {
+      mockPrompt.mockRejectedValue(new Error("Prompt Error"));
 
       await expect(
         adapter.sendMessage(createdSessionId, "Hello", "/test/sessions/task-1")

@@ -140,7 +140,7 @@ export class PiSessionAdapter implements SessionManagerInterface {
 
   /**
    * Send a message to a session.
-   * For Pi, this uses session.agent.send() to trigger the agent.
+   * For Pi, this uses session.prompt() to send a message to the agent.
    */
   async sendMessage(
     sessionId: string,
@@ -161,12 +161,9 @@ export class PiSessionAdapter implements SessionManagerInterface {
     }
 
     try {
-      // Send message to the Pi agent
+      // Send message to the Pi agent using prompt()
       // The agent will process it and emit events that we subscribe to
-      sessionInfo.piSession.agent.send({
-        role: "user",
-        content: [{ type: "text", text: message }],
-      });
+      await sessionInfo.piSession.prompt(message);
     } catch (error) {
       throw new Error(
         `Failed to send message to Pi session ${sessionId}: ${error instanceof Error ? error.message : "Unknown error"}`
