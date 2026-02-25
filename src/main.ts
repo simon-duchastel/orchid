@@ -6,9 +6,10 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./config/paths.js";
+import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./config/paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode/server.js";
 import { AgentOrchestrator } from "./orchestrator/index.js";
+import { OpencodeSessionManager } from "./agent-interface/index.js";
 import { log } from "./core/logging/logger.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
@@ -39,15 +40,25 @@ async function main() {
     log.log(`[orchid] OpenCode server running at ${serverInstance.info.url}`);
     log.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
-    // TODO: Initialize session manager and orchestrator (will be done in future PR)
-    // orchestrator = new AgentOrchestrator({
-    //   cwdProvider: () => mainRepoDir,
-    //   sessionManager: sessionManager,
-    // });
-    // orchestrator.start().catch((err: Error) => {
-    //   log.error("[orchid] Orchestrator error:", err);
-    // });
-    log.log("[orchid] Agent orchestrator initialization skipped (TODO: pass session manager)");
+    const mainRepoDir = getMainRepoDir();
+    const worktreesDir = getWorktreesDir(() => mainRepoDir);
+    
+    // Create session manager
+    const sessionManager = new OpencodeSessionManager({
+      sessionsDir: worktreesDir,
+      baseUrl: serverInstance.info.url,
+    });
+    
+    // Create and start the orchestrator
+    orchestrator = new AgentOrchestrator({
+      cwdProvider: () => mainRepoDir,
+      sessionManager: sessionManager,
+    });
+
+    orchestrator.start().catch((err: Error) => {
+      log.error("[orchid] Orchestrator error:", err);
+    });
+    log.log("[orchid] Agent orchestrator started");
 
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
