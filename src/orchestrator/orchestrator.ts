@@ -11,14 +11,15 @@
  */
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
-import { WorktreeManager } from "../../git/worktrees/index.js";
-import { getWorktreesDir } from "../../config/paths.js";
-import { OpencodeSessionManager, type AgentSession } from "../../agent-interface/index.js";
-import { Task, TaskState, createTaskFromDyson } from "../../tasks/index.js";
-import { createImplementorAgent, type ImplementorAgent } from "../agents/implementor/index.js";
-import { createReviewerAgent, type ReviewerAgent } from "../agents/reviewer/index.js";
-import { createMergerAgent, type MergerAgent } from "../agents/merger/index.js";
-import { log } from "../../core/logging/index.js";
+import { WorktreeManager } from "../git/worktrees/index.js";
+import { getWorktreesDir } from "../config/paths.js";
+import { type AgentSession } from "../agent-interface/types.js";
+import type { SessionManagerInterface } from "../agent-interface/index.js";
+import { Task, TaskState, createTaskFromDyson } from "../tasks/index.js";
+import { createImplementorAgent, type ImplementorAgent } from "../opencode/agents/implementor/index.js";
+import { createReviewerAgent, type ReviewerAgent } from "../opencode/agents/reviewer/index.js";
+import { createMergerAgent, type MergerAgent } from "../opencode/agents/merger/index.js";
+import { log } from "../core/logging/index.js";
 
 export interface AgentInfo {
   taskId: string;
@@ -32,8 +33,7 @@ export interface AgentInfo {
 export interface AgentOrchestratorOptions {
   cwdProvider?: () => string;
   worktreeManager?: WorktreeManager;
-  sessionManager?: OpencodeSessionManager;
-  opencodeBaseUrl: string;
+  sessionManager?: SessionManagerInterface;
 }
 
 export class AgentOrchestrator {
@@ -44,22 +44,21 @@ export class AgentOrchestrator {
   private mergers: Map<string, MergerAgent> = new Map();
   private abortController: AbortController | null = null;
   private worktreeManager: WorktreeManager;
-  private sessionManager: OpencodeSessionManager;
+  private sessionManager: SessionManagerInterface;
   private cwdProvider: () => string;
   private worktreesDir: string;
-  private eventStreamAbortController: AbortController | null = null;
 
   constructor(options: AgentOrchestratorOptions) {
     this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
     this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
     this.worktreeManager = options.worktreeManager ?? new WorktreeManager(this.cwdProvider());
     
-    // Initialize session manager with the worktrees directory
+    // Initialize session manager
     this.worktreesDir = getWorktreesDir(this.cwdProvider);
-    this.sessionManager = options.sessionManager ?? new OpencodeSessionManager({
-      sessionsDir: this.worktreesDir,
-      baseUrl: options.opencodeBaseUrl,
-    });
+    if (!options.sessionManager) {
+      throw new Error("Session manager is required");
+    }
+    this.sessionManager = options.sessionManager;
   }
 
   async start(): Promise<void> {
@@ -71,11 +70,9 @@ export class AgentOrchestrator {
     this.abortController = new AbortController();
     log.log("[orchestrator] Starting task monitor...");
 
-    // TODO: Refactor OpenCode event listening in future PR
-    // This was previously listening to OpenCode-specific events via @opencode-ai/sdk
-    // We need to add a generic event listening mechanism to SessionManagerInterface
-    // For now, session idle events are not handled
-    log.log("[orchestrator] Note: OpenCode event listening disabled - will be refactored in future PR");
+    // TODO: Implement generic event listener via SessionManagerInterface
+    // This will be added in a future PR
+    log.log("[orchestrator] Note: Event listener will be implemented in future PR");
 
     try {
       const stream = this.taskManager.listTaskStream({ status: "open" });
@@ -95,215 +92,6 @@ export class AgentOrchestrator {
     }
   }
 
-  /**
-   * Start listening to session idle events.
-   * TODO: Refactor in future PR to use generic event mechanism from SessionManagerInterface
-   */
-  private async startEventListener(): Promise<void> {
-    // TODO: Implement generic event listening via SessionManagerInterface
-    // This was previously OpenCode-specific event listening using @opencode-ai/sdk
-    log.log("[orchestrator] Event listener disabled - refactor in future PR");
-  }
-
-  /**
-   * Handle a session idle event.
-   * TODO: Refactor in future PR - this was OpenCode-specific event handling
-   */
-  private async handleEvent(_event: unknown): Promise<void> {
-    // TODO: Implement generic event handling
-    // This was previously handling OpenCode GlobalEvent types
-    log.log("[orchestrator] Event handling disabled - refactor in future PR");
-  }
-
-  /**
-   * Handle session idle for a task based on its current state.
-   * Routes to the appropriate completion handler.
-   */
-  private async handleSessionIdleForTask(task: Task): Promise<void> {
-    switch (task.state) {
-      case TaskState.IMPLEMENTING:
-        await this.handleImplementationComplete(task.taskId);
-        break;
-      case TaskState.REVIEWING:
-        await this.handleReviewComplete(task.taskId);
-        break;
-      case TaskState.MERGING:
-        await this.handleMergeComplete(task.taskId);
-        break;
-      default:
-        log.log(`[orchestrator] Session idle for task ${task.taskId} in state ${task.state}, no action needed`);
-    }
-  }
-
-  /**
-   * Find a task by its session ID.
-   */
-  private findTaskBySessionId(sessionId: string): Task | undefined {
-    for (const task of this.tasks.values()) {
-      if (task.sessionId === sessionId) {
-        return task;
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * Handle implementation completion.
-   * Called when an implementor agent finishes.
-   * Creates a reviewer agent for the task.
-   */
-  private async handleImplementationComplete(taskId: string): Promise<void> {
-    const task = this.tasks.get(taskId);
-    if (!task) {
-      log.error(`[orchestrator] Task ${taskId} not found for completion`);
-      return;
-    }
-
-    log.log(`[orchestrator] Task ${taskId} implementation complete`);
-
-    // Remove the implementor agent
-    const implementor = this.implementors.get(taskId);
-    if (implementor) {
-      await implementor.stop();
-      this.implementors.delete(taskId);
-    }
-
-    // Transition task state
-    try {
-      task.markImplementationComplete();
-      log.log(`[orchestrator] Task ${taskId} moved to AWAITING_REVIEW state`);
-      
-      // Create reviewer agent
-      await this.createReviewer(task);
-    } catch (error) {
-      log.error(`[orchestrator] Failed to transition task ${taskId}:`, error);
-    }
-  }
-
-  /**
-   * Handle review completion.
-   * Called when a reviewer agent finishes.
-   * Creates a merger agent for the task.
-   */
-  private async handleReviewComplete(taskId: string): Promise<void> {
-    const task = this.tasks.get(taskId);
-    if (!task) {
-      log.error(`[orchestrator] Task ${taskId} not found for review completion`);
-      return;
-    }
-
-    log.log(`[orchestrator] Task ${taskId} review complete`);
-
-    // Remove the reviewer agent
-    const reviewer = this.reviewers.get(taskId);
-    if (reviewer) {
-      await reviewer.stop();
-      this.reviewers.delete(taskId);
-    }
-
-    // Transition task state
-    try {
-      task.markReviewComplete();
-      log.log(`[orchestrator] Task ${taskId} moved to AWAITING_MERGE state`);
-      
-      // Create merger agent
-      await this.createMerger(task);
-    } catch (error) {
-      log.error(`[orchestrator] Failed to transition task ${taskId} after review:`, error);
-    }
-  }
-
-  /**
-   * Handle merge completion.
-   * Called when a merger agent finishes.
-   * Cleans up resources and marks task as complete.
-   */
-  private async handleMergeComplete(taskId: string): Promise<void> {
-    const task = this.tasks.get(taskId);
-    if (!task) {
-      log.error(`[orchestrator] Task ${taskId} not found for merge completion`);
-      return;
-    }
-
-    log.log(`[orchestrator] Task ${taskId} merge complete`);
-
-    // Remove the merger agent
-    const merger = this.mergers.get(taskId);
-    if (merger) {
-      await merger.stop();
-      this.mergers.delete(taskId);
-    }
-
-    // Transition task state
-    try {
-      task.markMergeComplete();
-      log.log(`[orchestrator] Task ${taskId} moved to COMPLETED state`);
-      
-      // Clean up resources
-      await this.cleanupTaskResources(taskId);
-      
-      // Remove task from tracking
-      this.tasks.delete(taskId);
-      log.log(`[orchestrator] Task ${taskId} completed and cleaned up`);
-    } catch (error) {
-      log.error(`[orchestrator] Failed to transition task ${taskId} after merge:`, error);
-    }
-  }
-
-  /**
-   * Handle implementation error.
-   * Called when an implementor agent fails.
-   * Cleans up worktree and session.
-   */
-  private async handleImplementationError(taskId: string, error: Error): Promise<void> {
-    const task = this.tasks.get(taskId);
-    if (!task) {
-      log.error(`[orchestrator] Task ${taskId} not found for error handling`);
-      return;
-    }
-
-    log.error(`[orchestrator] Task ${taskId} implementation failed:`, error);
-
-    // Remove the implementor agent
-    const implementor = this.implementors.get(taskId);
-    if (implementor) {
-      this.implementors.delete(taskId);
-    }
-
-    // Clean up session and worktree
-    await this.cleanupTaskResources(taskId);
-
-    // Mark task as failed
-    try {
-      task.markFailed();
-      log.log(`[orchestrator] Task ${taskId} moved to FAILED state`);
-    } catch (err) {
-      log.error(`[orchestrator] Failed to mark task ${taskId} as failed:`, err);
-    }
-  }
-
-  /**
-   * Clean up resources for a task.
-   */
-  private async cleanupTaskResources(taskId: string): Promise<void> {
-    // Remove session
-    try {
-      await this.sessionManager.removeSession(taskId);
-      log.log(`[orchestrator] Removed session for task ${taskId}`);
-    } catch (error) {
-      log.error(`[orchestrator] Failed to remove session for task ${taskId}:`, error);
-    }
-
-    // Remove worktree
-    const worktreePath = `${this.worktreesDir}/${taskId}`;
-    try {
-      await this.worktreeManager.remove(worktreePath, { force: true });
-      log.log(`[orchestrator] Removed worktree for task ${taskId}`);
-    } catch (error) {
-      log.error(`[orchestrator] Failed to remove worktree for task ${taskId}:`, error);
-    }
-  }
-
   async stop(): Promise<void> {
     if (!this.abortController) {
       return;
@@ -312,13 +100,6 @@ export class AgentOrchestrator {
     log.log("[orchestrator] Stopping...");
     this.abortController.abort();
     this.abortController = null;
-
-    // Stop event listener
-    if (this.eventStreamAbortController) {
-      this.eventStreamAbortController.abort();
-      this.eventStreamAbortController = null;
-      log.log("[orchestrator] Event listener stopped");
-    }
 
     // Stop all implementor agents
     log.log("[orchestrator] Stopping all implementor agents...");
@@ -358,14 +139,6 @@ export class AgentOrchestrator {
 
     // Clear tasks
     this.tasks.clear();
-    
-    // Stop all sessions
-    try {
-      await this.sessionManager.stopAllSessions();
-      log.log("[orchestrator] All OpenCode sessions stopped");
-    } catch (error) {
-      log.error("[orchestrator] Error stopping sessions:", error);
-    }
     
     log.log("[orchestrator] Stopped");
   }
@@ -412,9 +185,6 @@ export class AgentOrchestrator {
           await merger.stop();
           this.mergers.delete(taskId);
         }
-        
-        // Clean up session and worktree
-        await this.cleanupTaskResources(taskId);
         
         this.tasks.delete(taskId);
       }
@@ -481,7 +251,7 @@ export class AgentOrchestrator {
         sessionManager: this.sessionManager,
         taskManager: this.taskManager,
         onComplete: (taskId: string, session: AgentSession) => {
-          // This will be called via session idle event
+          // TODO: This will be called via session idle event when implemented
           log.log(`[orchestrator] Implementor ${agentId} completed for task ${taskId}`);
         },
         onError: (taskId: string, error: Error) => {
@@ -536,7 +306,7 @@ export class AgentOrchestrator {
         session: session,
         sessionManager: this.sessionManager,
         onComplete: (taskId: string, _session: AgentSession) => {
-          // This will be called via session idle event
+          // TODO: This will be called via session idle event when implemented
           log.log(`[orchestrator] Reviewer ${agentId} completed for task ${taskId}`);
         },
         onError: (taskId: string, error: Error) => {
@@ -590,7 +360,7 @@ export class AgentOrchestrator {
         session: session,
         sessionManager: this.sessionManager,
         onComplete: (taskId: string, _session: AgentSession) => {
-          // This will be called via session idle event
+          // TODO: This will be called via session idle event when implemented
           log.log(`[orchestrator] Merger ${agentId} completed for task ${taskId}`);
         },
         onError: (taskId: string, error: Error) => {
@@ -607,6 +377,34 @@ export class AgentOrchestrator {
     } catch (error) {
       log.error(`[orchestrator] Failed to create merger for task ${task.taskId}:`, error);
       await this.handleMergeError(task.taskId, error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Handle implementation error.
+   * Called when an implementor agent fails.
+   */
+  private async handleImplementationError(taskId: string, error: Error): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for error handling`);
+      return;
+    }
+
+    log.error(`[orchestrator] Task ${taskId} implementation failed:`, error);
+
+    // Remove the implementor agent
+    const implementor = this.implementors.get(taskId);
+    if (implementor) {
+      this.implementors.delete(taskId);
+    }
+
+    // Mark task as failed
+    try {
+      task.markFailed();
+      log.log(`[orchestrator] Task ${taskId} moved to FAILED state`);
+    } catch (err) {
+      log.error(`[orchestrator] Failed to mark task ${taskId} as failed:`, err);
     }
   }
 
@@ -628,9 +426,6 @@ export class AgentOrchestrator {
     if (reviewer) {
       this.reviewers.delete(taskId);
     }
-
-    // Clean up session and worktree
-    await this.cleanupTaskResources(taskId);
 
     // Mark task as failed
     try {
@@ -659,9 +454,6 @@ export class AgentOrchestrator {
     if (merger) {
       this.mergers.delete(taskId);
     }
-
-    // Clean up session and worktree
-    await this.cleanupTaskResources(taskId);
 
     // Mark task as failed
     try {

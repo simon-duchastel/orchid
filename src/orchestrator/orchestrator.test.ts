@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AgentOrchestrator } from "./orchestrator.js";
-import { Task, TaskState } from "../../tasks/index.js";
+import { Task, TaskState } from "../tasks/index.js";
 
 const mocks = vi.hoisted(() => {
   const mockListTaskStream = vi.fn();
@@ -53,7 +53,7 @@ vi.mock("dyson-swarm", () => ({
   TaskManager: mocks.MockTaskManager,
 }));
 
-vi.mock("../../git/worktrees/index.js", () => ({
+vi.mock("../git/worktrees/index.js", () => ({
   WorktreeManager: class MockWorktreeManager {
     create = vi.fn();
     remove = vi.fn();
@@ -64,11 +64,11 @@ vi.mock("../../git/worktrees/index.js", () => ({
   },
 }));
 
-vi.mock("../../config/paths.js", () => ({
+vi.mock("../config/paths.js", () => ({
   getWorktreesDir: () => "/test/worktrees",
 }));
 
-vi.mock("../session/index.js", () => ({
+vi.mock("../agent-interface/index.js", () => ({
   OpencodeSessionManager: mocks.MockSessionManager,
 }));
 
@@ -116,7 +116,6 @@ describe("AgentOrchestrator", () => {
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
       sessionManager: mockSessionManager,
-      opencodeBaseUrl: "http://localhost:4096",
     });
   });
 

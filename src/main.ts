@@ -8,7 +8,7 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./config/paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode/server.js";
-import { AgentOrchestrator } from "./opencode/orchestrator/index.js";
+import { AgentOrchestrator } from "./orchestrator/index.js";
 import { log } from "./core/logging/logger.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
@@ -40,10 +40,13 @@ async function main() {
     log.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
     const mainRepoDir = getMainRepoDir();
-    orchestrator = new AgentOrchestrator({
-      cwdProvider: () => mainRepoDir,
-      opencodeBaseUrl: serverInstance.info.url,
-    });
+    // TODO: Initialize session manager (will be done in future PR)
+    // For now, we need to pass a session manager to the orchestrator
+    // orchestrator = new AgentOrchestrator({
+    //   cwdProvider: () => mainRepoDir,
+    //   sessionManager: sessionManager,
+    // });
+    log.log("[orchid] Agent orchestrator initialization skipped (TODO: pass session manager)");
 
     orchestrator.start().catch((err: Error) => {
       log.error("[orchid] Orchestrator error:", err);
