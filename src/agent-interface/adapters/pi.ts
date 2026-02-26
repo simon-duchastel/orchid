@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import {
   createAgentSession,
+  SessionManager,
   type AgentSession,
   type CreateAgentSessionResult,
 } from "@mariozechner/pi-coding-agent";
@@ -73,6 +74,7 @@ export class PiSessionAdapter implements SessionManagerInterface {
       // Create Pi session using SDK
       const result: CreateAgentSessionResult = await createAgentSession({
         cwd: options.workingDirectory,
+        sessionManager: SessionManager.inMemory(),
       });
 
       const sessionId = `pi-${options.taskId}-${Date.now()}`;
