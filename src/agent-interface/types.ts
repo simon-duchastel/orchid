@@ -34,6 +34,8 @@ export interface CreateSessionOptions {
   taskId: string;
   /** Path to the working directory */
   workingDirectory: string;
+  /** Optional system prompt for the agent session */
+  systemPrompt?: string;
 }
 
 /**
