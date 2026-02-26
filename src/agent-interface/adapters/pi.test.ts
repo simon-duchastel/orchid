@@ -11,6 +11,9 @@ const mockCreateAgentSession = vi.fn();
 
 vi.mock("@mariozechner/pi-coding-agent", () => ({
   createAgentSession: (...args: unknown[]) => mockCreateAgentSession(...args),
+  SessionManager: {
+    inMemory: () => ({}),
+  },
 }));
 
 vi.mock("node:fs", () => ({

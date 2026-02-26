@@ -5,7 +5,6 @@ import { initCommand } from "./cli/init.js";
 import { upCommand } from "./cli/up.js";
 import { downCommand } from "./cli/down.js";
 import { statusCommand } from "./cli/status.js";
-import { dashboardCommand } from "./cli/dashboard.js";
 import { setVerboseLogging } from "./core/logging/index.js";
 
 await new Command()
@@ -24,5 +23,4 @@ await new Command()
   .command("up", upCommand)
   .command("down", downCommand)
   .command("status", statusCommand)
-  .command("dashboard", dashboardCommand)
   .parse();
