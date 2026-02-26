@@ -11,14 +11,14 @@
  */
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
-import { WorktreeManager } from "../git/worktrees/index.js";
+import { WorktreeManager } from "../core/git/worktrees/index.js";
 import { getWorktreesDir } from "../config/paths.js";
-import { type AgentSession } from "../agent-interface/types.js";
-import type { SessionManagerInterface } from "../agent-interface/index.js";
-import { Task, TaskState, createTaskFromDyson } from "../tasks/index.js";
-import { createImplementorAgent, type ImplementorAgent } from "../agents/implementor.js";
-import { createReviewerAgent, type ReviewerAgent } from "../agents/reviewer.js";
-import { createMergerAgent, type MergerAgent } from "../agents/merger.js";
+import { type AgentSession } from "./agents/interface/types.js";
+import type { SessionManagerInterface } from "./agents/interface/index.js";
+import { Task, TaskState, createTaskFromDyson } from "../core/tasks/index.js";
+import { createImplementorAgent, type ImplementorAgent } from "./agents/implementor.js";
+import { createReviewerAgent, type ReviewerAgent } from "./agents/reviewer.js";
+import { createMergerAgent, type MergerAgent } from "./agents/merger.js";
 import { getImplementorSystemPrompt } from "../templates/index.js";
 import { log } from "../core/logging/index.js";
 

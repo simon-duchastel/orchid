@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AgentOrchestrator } from "./orchestrator.js";
-import { Task, TaskState } from "../tasks/index.js";
+import { Task, TaskState } from "../core/tasks/index.js";
 
 const mocks = vi.hoisted(() => {
   const mockListTaskStream = vi.fn();
@@ -54,7 +54,7 @@ vi.mock("dyson-swarm", () => ({
   TaskManager: mocks.MockTaskManager,
 }));
 
-vi.mock("../git/worktrees/index.js", () => ({
+vi.mock("../core/git/worktrees/index.js", () => ({
   WorktreeManager: class MockWorktreeManager {
     create = vi.fn();
     remove = vi.fn();
