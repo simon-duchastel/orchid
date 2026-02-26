@@ -10,5 +10,5 @@ export async function upAction() {
 }
 
 export const upCommand: any = new Command()
-  .description("Start the orchid daemon and OpenCode server")
+  .description("Start the orchid daemon")
   .action(upAction);

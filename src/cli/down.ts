@@ -10,5 +10,5 @@ export async function downAction() {
 }
 
 export const downCommand: any = new Command()
-  .description("Stop the orchid daemon and OpenCode server")
+  .description("Stop the orchid daemon")
   .action(downAction);
