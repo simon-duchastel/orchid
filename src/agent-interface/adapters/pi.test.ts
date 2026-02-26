@@ -96,6 +96,7 @@ describe("PiSessionAdapter", () => {
         adapter.createSession({
           taskId: "task-1",
           workingDirectory: "/test/sessions/task-1",
+          systemPrompt: "fake system prompt for test",
         })
       ).rejects.toThrow("Session for task task-1 already exists");
     });
@@ -123,6 +124,7 @@ describe("PiSessionAdapter", () => {
         adapter.createSession({
           taskId: "task-1",
           workingDirectory: "/test/sessions/task-1",
+          systemPrompt: "fake system prompt for test",
         })
       ).rejects.toThrow("Failed to create Pi session for task task-1: SDK Error");
     });
