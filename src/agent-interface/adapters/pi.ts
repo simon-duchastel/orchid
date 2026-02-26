@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import {
   createAgentSession,
+  DefaultResourceLoader,
   type AgentSession,
   type CreateAgentSessionResult,
 } from "@mariozechner/pi-coding-agent";
@@ -70,10 +71,22 @@ export class PiSessionAdapter implements SessionManagerInterface {
     }
 
     try {
-      // Create Pi session using SDK
-      const result: CreateAgentSessionResult = await createAgentSession({
+      // Create Pi session using SDK with optional system prompt override
+      const createSessionOptions: { cwd: string; resourceLoader?: DefaultResourceLoader } = {
         cwd: options.workingDirectory,
-      });
+      };
+
+      if (options.systemPrompt) {
+        const resourceLoader = new DefaultResourceLoader({
+          systemPromptOverride: () => options.systemPrompt!,
+          // Prevent DefaultResourceLoader from appending APPEND_SYSTEM.md
+          appendSystemPromptOverride: () => [],
+        });
+        await resourceLoader.reload();
+        createSessionOptions.resourceLoader = resourceLoader;
+      }
+
+      const result: CreateAgentSessionResult = await createAgentSession(createSessionOptions);
 
       const sessionId = `pi-${options.taskId}-${Date.now()}`;
 
