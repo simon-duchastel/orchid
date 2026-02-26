@@ -27,14 +27,10 @@ vi.mock("../../templates/index.js", () => ({
 
 describe("ReviewerAgent", () => {
   let mockSessionManager: any;
-  let onComplete: vi.Mock;
-  let onError: vi.Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionManager = new mocks.MockSessionManager();
-    onComplete = vi.fn();
-    onError = vi.fn();
   });
 
   afterEach(() => {
@@ -63,8 +59,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
       });
 
       await agent.start();
@@ -97,8 +93,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
       });
 
       await agent.start();
@@ -112,6 +108,7 @@ describe("ReviewerAgent", () => {
 
     it("should call onError if session creation fails", async () => {
       mocks.mockSessionCreate.mockRejectedValue(new Error("Session creation failed"));
+      const onErrorMock = vi.fn();
 
       const agent = createReviewerAgent({
         taskId: "task-1",
@@ -123,13 +120,13 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: onErrorMock,
       });
 
       await agent.start();
 
-      expect(onError).toHaveBeenCalledWith("task-1", expect.any(Error));
+      expect(onErrorMock).toHaveBeenCalledWith("task-1", expect.any(Error));
       expect(agent.isRunning()).toBe(false);
     });
   });
@@ -157,8 +154,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
       });
 
       await agent.start();
@@ -181,8 +178,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
       });
 
       await expect(agent.stop()).resolves.not.toThrow();
@@ -201,6 +198,7 @@ describe("ReviewerAgent", () => {
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockSendMessage.mockResolvedValue(undefined);
       mocks.mockSessionRemove.mockResolvedValue(undefined);
+      const onCompleteMock = vi.fn();
 
       const agent = createReviewerAgent({
         taskId: "task-1",
@@ -212,8 +210,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: onCompleteMock,
+        onError: vi.fn(),
       });
 
       await agent.start();
@@ -221,7 +219,7 @@ describe("ReviewerAgent", () => {
       await (agent as any).handleSessionIdle();
 
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
-      expect(onComplete).toHaveBeenCalledWith("task-1");
+      expect(onCompleteMock).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
   });
@@ -238,8 +236,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
       });
 
       expect(agent.isRunning()).toBe(false);
@@ -266,8 +264,8 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         sessionManager: mockSessionManager,
-        onComplete,
-        onError,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
       });
 
       await agent.start();
