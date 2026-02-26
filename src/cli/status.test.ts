@@ -20,20 +20,17 @@ describe('status command', () => {
     mockGetStatus.mockReturnValue({
       running: true,
       pid: 12345,
-      serverUrl: 'http://127.0.0.1:3000',
     });
 
     statusAction();
 
     expect(mockConsoleLog).toHaveBeenCalledWith('Orchid is running (PID: 12345)');
-    expect(mockConsoleLog).toHaveBeenCalledWith('Server: http://127.0.0.1:3000');
   });
 
   it('should show not running status', () => {
     mockGetStatus.mockReturnValue({
       running: false,
       pid: null,
-      serverUrl: null,
     });
 
     statusAction();

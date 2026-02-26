@@ -29,19 +29,6 @@ vi.mock('../orchid-lifecycle/index.js', () => ({
 
 import { validateOrchidStructure } from '../orchid-lifecycle/index.js';
 
-// Mock networking module
-vi.mock('../core/networking/index.js', () => ({
-  findAvailablePort: vi.fn().mockResolvedValue(5678),
-}));
-
-// Mock credentials module
-vi.mock('../core/credentials/index.js', () => ({
-  generateServerCredentials: vi.fn().mockReturnValue({
-    username: 'test-user',
-    password: 'test-pass',
-  }),
-}));
-
 // Mock paths module to control directory locations for testing
 vi.mock('../config/paths.js', () => ({
   getOrchidDir: () => '/tmp/test-orchid-daemon/.orchid',
@@ -50,7 +37,6 @@ vi.mock('../config/paths.js', () => ({
   getErrorLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.error.log',
   getMainRepoDir: () => '/tmp/test-orchid-daemon/.orchid/main',
   getWorktreesDir: () => '/tmp/test-orchid-daemon/worktrees',
-  getDirectoryPort: () => 5678,
 }));
 
 
