@@ -91,6 +91,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
         workingDirectory: this.worktreePath,
         systemPrompt: getImplementorSystemPrompt(),
         sessionFilePath: session.filePath,
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
       log.log(`[implementor] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       
