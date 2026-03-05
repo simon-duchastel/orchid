@@ -13,5 +13,6 @@ export {
 export type {
   Model,
   Provider,
-  ModelsJson,
+  ProviderAuth,
+  OrchidConfig,
 } from "./types.js";
