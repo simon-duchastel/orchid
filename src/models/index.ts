@@ -13,5 +13,7 @@ export {
 export type {
   Model,
   Provider,
+  ProviderAuth,
   ModelsJson,
+  ProvidersJson,
 } from "./types.js";

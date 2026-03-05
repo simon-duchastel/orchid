@@ -247,23 +247,120 @@ describe("ModelRepository", () => {
     });
   });
 
-  describe("provider methods (placeholders)", () => {
+  describe("provider methods", () => {
+    const TEST_PROVIDERS_PATH = "/test/.orchid/providers.json";
+
     beforeEach(() => {
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      vi.mocked(existsSync).mockReturnValue(false);
+      repository = createModelRepository({ 
+        modelsJsonPath: TEST_MODELS_PATH,
+        providersJsonPath: TEST_PROVIDERS_PATH
+      });
     });
 
-    it("getAllProviders should return empty array", () => {
-      expect(repository.getAllProviders()).toEqual([]);
+    describe("getAllProviders", () => {
+      it("should return empty array when no providers", () => {
+        expect(repository.getAllProviders()).toEqual([]);
+      });
+
+      it("should return all providers from file", () => {
+        vi.mocked(existsSync).mockImplementation((path) => path === TEST_PROVIDERS_PATH);
+        vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+          providers: [
+            { name: "anthropic", auth: { url: "https://api.anthropic.com" } },
+            { name: "openai", auth: { url: "https://api.openai.com", apiKey: "sk-test" } }
+          ]
+        }));
+        
+        repository = createModelRepository({ providersJsonPath: TEST_PROVIDERS_PATH });
+        
+        const providers = repository.getAllProviders();
+        expect(providers).toHaveLength(2);
+        expect(providers[0].name).toBe("anthropic");
+        expect(providers[1].name).toBe("openai");
+      });
     });
 
-    it("addProvider should throw not implemented", () => {
-      expect(() => repository.addProvider({ name: "test" }))
-        .toThrow("addProvider not implemented");
+    describe("getProvider", () => {
+      it("should return undefined if provider not found", () => {
+        expect(repository.getProvider("unknown")).toBeUndefined();
+      });
+
+      it("should return provider if found", () => {
+        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        
+        const provider = repository.getProvider("anthropic");
+        expect(provider).toBeDefined();
+        expect(provider?.name).toBe("anthropic");
+        expect(provider?.auth.url).toBe("https://api.anthropic.com");
+      });
     });
 
-    it("removeProvider should throw not implemented", () => {
-      expect(() => repository.removeProvider("test"))
-        .toThrow("removeProvider not implemented");
+    describe("addProvider", () => {
+      it("should add a provider with url only", () => {
+        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        
+        const providers = repository.getAllProviders();
+        expect(providers).toHaveLength(1);
+        expect(providers[0]).toEqual({ name: "anthropic", auth: { url: "https://api.anthropic.com" } });
+      });
+
+      it("should add a provider with url and apiKey", () => {
+        repository.addProvider("openai", { url: "https://api.openai.com", apiKey: "sk-test" });
+        
+        const provider = repository.getProvider("openai");
+        expect(provider?.auth.apiKey).toBe("sk-test");
+      });
+
+      it("should throw if provider already exists", () => {
+        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        
+        expect(() => repository.addProvider("anthropic", { url: "https://api.anthropic.com" }))
+          .toThrow("Provider anthropic already exists");
+      });
+
+      it("should persist to file", () => {
+        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        
+        expect(writeFileSync).toHaveBeenCalledWith(
+          TEST_PROVIDERS_PATH,
+          expect.stringContaining("anthropic")
+        );
+      });
+    });
+
+    describe("removeProvider", () => {
+      beforeEach(() => {
+        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        repository.addProvider("openai", { url: "https://api.openai.com" });
+      });
+
+      it("should remove a provider", () => {
+        const result = repository.removeProvider("anthropic");
+        
+        expect(result).toBe(true);
+        expect(repository.getAllProviders()).toHaveLength(1);
+        expect(repository.getProvider("anthropic")).toBeUndefined();
+      });
+
+      it("should return false if provider not found", () => {
+        const result = repository.removeProvider("unknown");
+        
+        expect(result).toBe(false);
+      });
+
+      it("should throw if provider is in use by models", () => {
+        repository.addModel({ provider: "anthropic", modelId: "claude-3" });
+        
+        expect(() => repository.removeProvider("anthropic"))
+          .toThrow("Cannot remove provider anthropic - in use by 1 model(s)");
+      });
+
+      it("should persist to file after removal", () => {
+        repository.removeProvider("anthropic");
+        
+        expect(writeFileSync).toHaveBeenCalled();
+      });
     });
   });
 

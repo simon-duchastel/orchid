@@ -15,10 +15,21 @@ export interface Model {
 }
 
 /**
+ * Provider authentication configuration
+ */
+export interface ProviderAuth {
+  /** Required URL for the provider endpoint */
+  url: string;
+  /** Optional API key - not all providers require authentication */
+  apiKey?: string;
+}
+
+/**
  * Provider configuration
  */
 export interface Provider {
   name: string;
+  auth: ProviderAuth;
 }
 
 /**
@@ -27,6 +38,13 @@ export interface Provider {
 export interface ModelsJson {
   models: Model[];
   agentModels: Partial<Record<AgentType, Model>>;
+}
+
+/**
+ * Providers.json file structure
+ */
+export interface ProvidersJson {
+  providers: Provider[];
 }
 
 /**
