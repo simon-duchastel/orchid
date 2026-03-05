@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { AgentType } from "../agent-framework/session-repository.js";
 import { ModelRepository, createModelRepository } from "./model-repository.js";
-import type { Model } from "./types.js";
+import type { Model, Provider } from "./types.js";
 
 // Mock the fs module
 vi.mock("node:fs", () => ({
@@ -12,7 +12,7 @@ vi.mock("node:fs", () => ({
   mkdirSync: vi.fn(),
 }));
 
-const TEST_MODELS_PATH = "/test/.orchid/models.json";
+const TEST_CONFIG_PATH = "/test/.orchid/config.json";
 
 describe("ModelRepository", () => {
   let repository: ModelRepository;
@@ -32,48 +32,52 @@ describe("ModelRepository", () => {
     it("should create with default path when no options provided", () => {
       repository = createModelRepository();
       expect(repository.getAllModels()).toEqual([]);
+      expect(repository.getAllProviders()).toEqual([]);
     });
 
     it("should use custom path when provided", () => {
       vi.mocked(existsSync).mockImplementation((path) => {
-        return path === "/custom/models.json";
+        return path === "/custom/config.json";
       });
-      vi.mocked(readFileSync).mockReturnValue('{"models": [{"provider": "test", "modelId": "model"}], "agentModels": {}}');
+      vi.mocked(readFileSync).mockReturnValue('{"providers": [], "models": [{"provider": "test", "modelId": "model"}], "agentModels": {}}');
 
-      repository = createModelRepository({ modelsJsonPath: "/custom/models.json" });
+      repository = createModelRepository({ configPath: "/custom/config.json" });
       
       const models = repository.getAllModels();
       expect(models).toHaveLength(1);
       expect(models[0]).toEqual({ provider: "test", modelId: "model" });
     });
 
-    it("should handle missing models.json gracefully", () => {
+    it("should handle missing config.json gracefully", () => {
       vi.mocked(existsSync).mockReturnValue(false);
       
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       expect(repository.getAllModels()).toEqual([]);
+      expect(repository.getAllProviders()).toEqual([]);
     });
 
-    it("should handle corrupted models.json gracefully", () => {
+    it("should handle corrupted config.json gracefully", () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue("invalid json");
       
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       expect(repository.getAllModels()).toEqual([]);
+      expect(repository.getAllProviders()).toEqual([]);
     });
   });
 
   describe("getAllModels", () => {
     it("should return empty array when no models", () => {
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       expect(repository.getAllModels()).toEqual([]);
     });
 
     it("should return all models from file", () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+        providers: [],
         models: [
           { provider: "anthropic", modelId: "claude-3" },
           { provider: "openai", modelId: "gpt-4" }
@@ -81,7 +85,7 @@ describe("ModelRepository", () => {
         agentModels: {}
       }));
 
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       const models = repository.getAllModels();
       expect(models).toHaveLength(2);
@@ -92,7 +96,7 @@ describe("ModelRepository", () => {
 
   describe("addModel", () => {
     beforeEach(() => {
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
     });
 
     it("should add a model", () => {
@@ -117,7 +121,7 @@ describe("ModelRepository", () => {
       repository.addModel(model);
       
       expect(writeFileSync).toHaveBeenCalledWith(
-        TEST_MODELS_PATH,
+        TEST_CONFIG_PATH,
         expect.stringContaining('"models"')
       );
     });
@@ -127,13 +131,14 @@ describe("ModelRepository", () => {
     beforeEach(() => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+        providers: [],
         models: [
           { provider: "anthropic", modelId: "claude-3" },
           { provider: "openai", modelId: "gpt-4" }
         ],
         agentModels: {}
       }));
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
     });
 
     it("should remove a model", () => {
@@ -153,10 +158,11 @@ describe("ModelRepository", () => {
     it("should throw if model is assigned to an agent", () => {
       // Set up a model assigned to an agent
       vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+        providers: [],
         models: [{ provider: "anthropic", modelId: "claude-3" }],
         agentModels: { [AgentType.IMPLEMENTOR]: { provider: "anthropic", modelId: "claude-3" } }
       }));
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       expect(() => repository.removeModel("anthropic", "claude-3"))
         .toThrow("Cannot remove model anthropic/claude-3 - assigned to implementor");
@@ -173,6 +179,7 @@ describe("ModelRepository", () => {
     beforeEach(() => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+        providers: [],
         models: [
           { provider: "anthropic", modelId: "claude-3" },
           { provider: "openai", modelId: "gpt-4" }
@@ -182,7 +189,7 @@ describe("ModelRepository", () => {
           [AgentType.REVIEWER]: { provider: "openai", modelId: "gpt-4" }
         }
       }));
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
     });
 
     it("should get model for implementor", () => {
@@ -208,13 +215,17 @@ describe("ModelRepository", () => {
     beforeEach(() => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+        providers: [
+          { name: "anthropic", auth: { url: "https://api.anthropic.com" } },
+          { name: "openai", auth: { url: "https://api.openai.com" } }
+        ],
         models: [
           { provider: "anthropic", modelId: "claude-3" },
           { provider: "openai", modelId: "gpt-4" }
         ],
         agentModels: {}
       }));
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
     });
 
     it("should set model for agent", () => {
@@ -241,21 +252,15 @@ describe("ModelRepository", () => {
       repository.setModelForAgent(AgentType.IMPLEMENTOR, "anthropic", "claude-3");
       
       expect(writeFileSync).toHaveBeenCalledWith(
-        TEST_MODELS_PATH,
+        TEST_CONFIG_PATH,
         expect.stringContaining('"implementor"')
       );
     });
   });
 
   describe("provider methods", () => {
-    const TEST_PROVIDERS_PATH = "/test/.orchid/providers.json";
-
     beforeEach(() => {
-      vi.mocked(existsSync).mockReturnValue(false);
-      repository = createModelRepository({ 
-        modelsJsonPath: TEST_MODELS_PATH,
-        providersJsonPath: TEST_PROVIDERS_PATH
-      });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
     });
 
     describe("getAllProviders", () => {
@@ -264,15 +269,17 @@ describe("ModelRepository", () => {
       });
 
       it("should return all providers from file", () => {
-        vi.mocked(existsSync).mockImplementation((path) => path === TEST_PROVIDERS_PATH);
+        vi.mocked(existsSync).mockImplementation((path) => path === TEST_CONFIG_PATH);
         vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
           providers: [
             { name: "anthropic", auth: { url: "https://api.anthropic.com" } },
             { name: "openai", auth: { url: "https://api.openai.com", apiKey: "sk-test" } }
-          ]
+          ],
+          models: [],
+          agentModels: {}
         }));
         
-        repository = createModelRepository({ providersJsonPath: TEST_PROVIDERS_PATH });
+        repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
         
         const providers = repository.getAllProviders();
         expect(providers).toHaveLength(2);
@@ -281,49 +288,41 @@ describe("ModelRepository", () => {
       });
     });
 
-    describe("getProvider", () => {
-      it("should return undefined if provider not found", () => {
-        expect(repository.getProvider("unknown")).toBeUndefined();
-      });
-
-      it("should return provider if found", () => {
-        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
-        
-        const provider = repository.getProvider("anthropic");
-        expect(provider).toBeDefined();
-        expect(provider?.name).toBe("anthropic");
-        expect(provider?.auth.url).toBe("https://api.anthropic.com");
-      });
-    });
-
     describe("addProvider", () => {
-      it("should add a provider with url only", () => {
-        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+      it("should add a provider", () => {
+        const provider: Provider = { name: "anthropic", auth: { url: "https://api.anthropic.com" } };
+        
+        repository.addProvider(provider);
         
         const providers = repository.getAllProviders();
         expect(providers).toHaveLength(1);
-        expect(providers[0]).toEqual({ name: "anthropic", auth: { url: "https://api.anthropic.com" } });
+        expect(providers[0]).toEqual(provider);
       });
 
-      it("should add a provider with url and apiKey", () => {
-        repository.addProvider("openai", { url: "https://api.openai.com", apiKey: "sk-test" });
+      it("should add a provider with apiKey", () => {
+        const provider: Provider = { name: "openai", auth: { url: "https://api.openai.com", apiKey: "sk-test" } };
         
-        const provider = repository.getProvider("openai");
-        expect(provider?.auth.apiKey).toBe("sk-test");
+        repository.addProvider(provider);
+        
+        const savedProvider = repository.getAllProviders()[0];
+        expect(savedProvider.auth.apiKey).toBe("sk-test");
       });
 
       it("should throw if provider already exists", () => {
-        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        const provider: Provider = { name: "anthropic", auth: { url: "https://api.anthropic.com" } };
+        repository.addProvider(provider);
         
-        expect(() => repository.addProvider("anthropic", { url: "https://api.anthropic.com" }))
+        expect(() => repository.addProvider(provider))
           .toThrow("Provider anthropic already exists");
       });
 
       it("should persist to file", () => {
-        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
+        const provider: Provider = { name: "anthropic", auth: { url: "https://api.anthropic.com" } };
+        
+        repository.addProvider(provider);
         
         expect(writeFileSync).toHaveBeenCalledWith(
-          TEST_PROVIDERS_PATH,
+          TEST_CONFIG_PATH,
           expect.stringContaining("anthropic")
         );
       });
@@ -331,8 +330,8 @@ describe("ModelRepository", () => {
 
     describe("removeProvider", () => {
       beforeEach(() => {
-        repository.addProvider("anthropic", { url: "https://api.anthropic.com" });
-        repository.addProvider("openai", { url: "https://api.openai.com" });
+        repository.addProvider({ name: "anthropic", auth: { url: "https://api.anthropic.com" } });
+        repository.addProvider({ name: "openai", auth: { url: "https://api.openai.com" } });
       });
 
       it("should remove a provider", () => {
@@ -340,7 +339,7 @@ describe("ModelRepository", () => {
         
         expect(result).toBe(true);
         expect(repository.getAllProviders()).toHaveLength(1);
-        expect(repository.getProvider("anthropic")).toBeUndefined();
+        expect(repository.getAllProviders()[0].name).toBe("openai");
       });
 
       it("should return false if provider not found", () => {
@@ -367,21 +366,23 @@ describe("ModelRepository", () => {
   describe("persistence", () => {
     it("should create directory if needed when saving", () => {
       vi.mocked(existsSync).mockReturnValue(false);
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       repository.addModel({ provider: "test", modelId: "model" });
       
       expect(mkdirSync).toHaveBeenCalledWith("/test/.orchid", { recursive: true });
     });
 
-    it("should save valid JSON", () => {
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+    it("should save valid JSON with all data types", () => {
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
+      repository.addProvider({ name: "anthropic", auth: { url: "https://api.anthropic.com" } });
       repository.addModel({ provider: "anthropic", modelId: "claude-3" });
       repository.setModelForAgent(AgentType.IMPLEMENTOR, "anthropic", "claude-3");
       
-      const writeCall = vi.mocked(writeFileSync).mock.calls[1]; // Second call (addModel + setModelForAgent)
+      const writeCall = vi.mocked(writeFileSync).mock.calls[2]; // Third call
       const written = JSON.parse(writeCall[1] as string);
       
+      expect(written.providers).toContainEqual({ name: "anthropic", auth: { url: "https://api.anthropic.com" } });
       expect(written.models).toContainEqual({ provider: "anthropic", modelId: "claude-3" });
       expect(written.agentModels.implementor).toEqual({ provider: "anthropic", modelId: "claude-3" });
     });
@@ -389,7 +390,7 @@ describe("ModelRepository", () => {
 
   describe("edge cases", () => {
     it("should handle models with special characters in modelId", () => {
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       const model: Model = { provider: "test", modelId: "model-v1.0-beta_test" };
       repository.addModel(model);
@@ -398,8 +399,9 @@ describe("ModelRepository", () => {
     });
 
     it("should handle multiple agents with same model", () => {
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
+      repository.addProvider({ name: "anthropic", auth: { url: "https://api.anthropic.com" } });
       repository.addModel({ provider: "anthropic", modelId: "claude-3" });
       repository.setModelForAgent(AgentType.IMPLEMENTOR, "anthropic", "claude-3");
       repository.setModelForAgent(AgentType.REVIEWER, "anthropic", "claude-3");
@@ -411,10 +413,14 @@ describe("ModelRepository", () => {
     it("should allow removing model after unassigning from all agents", () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
+        providers: [
+          { name: "anthropic", auth: { url: "https://api.anthropic.com" } },
+          { name: "openai", auth: { url: "https://api.openai.com" } }
+        ],
         models: [{ provider: "anthropic", modelId: "claude-3" }],
         agentModels: { [AgentType.IMPLEMENTOR]: { provider: "anthropic", modelId: "claude-3" } }
       }));
-      repository = createModelRepository({ modelsJsonPath: TEST_MODELS_PATH });
+      repository = createModelRepository({ configPath: TEST_CONFIG_PATH });
       
       // First clear the assignment by setting to a different model
       repository.addModel({ provider: "openai", modelId: "gpt-4" });

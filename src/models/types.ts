@@ -33,24 +33,19 @@ export interface Provider {
 }
 
 /**
- * Models.json file structure
+ * Unified OrchidConfig file structure
+ * Combines providers, models, and agentModels in a single config.json
  */
-export interface ModelsJson {
+export interface OrchidConfig {
+  providers: Provider[];
   models: Model[];
   agentModels: Partial<Record<AgentType, Model>>;
-}
-
-/**
- * Providers.json file structure
- */
-export interface ProvidersJson {
-  providers: Provider[];
 }
 
 /**
  * Options for creating a ModelRepository
  */
 export interface ModelRepositoryOptions {
-  /** Path to models.json file */
-  modelsJsonPath?: string;
+  /** Path to config.json file */
+  configPath?: string;
 }

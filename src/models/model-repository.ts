@@ -2,40 +2,34 @@
  * Model Repository
  *
  * Simple model configuration management for agents.
- * Stores models in .orchid/models.json with agent type assignments.
+ * Stores configuration in .orchid/config.json with providers, models, and agent type assignments.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { AgentType } from "../agent-framework/session-repository.js";
 import { getOrchidDir } from "../config/paths.js";
-import type { Model, Provider, ProviderAuth, ModelsJson, ProvidersJson } from "./types.js";
+import type { Model, Provider, OrchidConfig } from "./types.js";
 
 /**
  * Options for creating a ModelRepository
  */
 export interface ModelRepositoryOptions {
-  /** Path to models.json file */
-  modelsJsonPath?: string;
-  /** Path to providers.json file */
-  providersJsonPath?: string;
+  /** Path to config.json file */
+  configPath?: string;
 }
 
 /**
  * Simple repository for managing model configurations.
- * Reads/writes to .orchid/models.json and providers.json
+ * Reads/writes to .orchid/config.json
  */
 export class ModelRepository {
-  private modelsJsonPath: string;
-  private providersJsonPath: string;
-  private data: ModelsJson = { models: [], agentModels: {} };
-  private providersData: ProvidersJson = { providers: [] };
+  private configPath: string;
+  private data: OrchidConfig = { providers: [], models: [], agentModels: {} };
 
   constructor(options: ModelRepositoryOptions = {}) {
-    this.modelsJsonPath = options.modelsJsonPath ?? join(getOrchidDir(), "models.json");
-    this.providersJsonPath = options.providersJsonPath ?? join(getOrchidDir(), "providers.json");
+    this.configPath = options.configPath ?? join(getOrchidDir(), "config.json");
     this.load();
-    this.loadProviders();
   }
 
   /**
@@ -43,6 +37,14 @@ export class ModelRepository {
    */
   getAllModels(): Model[] {
     return [...this.data.models];
+  }
+
+  /**
+   * Get all configured providers
+   * @returns Array of providers
+   */
+  getAllProviders(): Provider[] {
+    return [...this.data.providers];
   }
 
   /**
@@ -116,34 +118,16 @@ export class ModelRepository {
   }
 
   /**
-   * Get all configured providers
-   * @returns Array of providers
-   */
-  getAllProviders(): Provider[] {
-    return [...this.providersData.providers];
-  }
-
-  /**
-   * Get a provider by name
-   * @param name - The provider name
-   * @returns The provider or undefined if not found
-   */
-  getProvider(name: string): Provider | undefined {
-    return this.providersData.providers.find(p => p.name === name);
-  }
-
-  /**
    * Add a provider
-   * @param name - The provider name
-   * @param auth - The provider authentication configuration
+   * @param provider - The provider to add
    * @throws Error if provider already exists
    */
-  addProvider(name: string, auth: ProviderAuth): void {
-    if (this.hasProvider(name)) {
-      throw new Error(`Provider ${name} already exists`);
+  addProvider(provider: Provider): void {
+    if (this.hasProvider(provider.name)) {
+      throw new Error(`Provider ${provider.name} already exists`);
     }
-    this.providersData.providers.push({ name, auth });
-    this.saveProviders();
+    this.data.providers.push(provider);
+    this.save();
   }
 
   /**
@@ -159,13 +143,13 @@ export class ModelRepository {
       throw new Error(`Cannot remove provider ${name} - in use by ${modelsUsingProvider.length} model(s)`);
     }
 
-    const index = this.providersData.providers.findIndex(p => p.name === name);
+    const index = this.data.providers.findIndex(p => p.name === name);
     if (index === -1) {
       return false;
     }
 
-    this.providersData.providers.splice(index, 1);
-    this.saveProviders();
+    this.data.providers.splice(index, 1);
+    this.save();
     return true;
   }
 
@@ -174,7 +158,7 @@ export class ModelRepository {
    */
   private hasModel(provider: string, modelId: string): boolean {
     return this.data.models.some(
-      m => m.provider === provider && m.modelId === modelId
+      (m: Model) => m.provider === provider && m.modelId === modelId
     );
   }
 
@@ -186,77 +170,45 @@ export class ModelRepository {
   }
 
   /**
-   * Load from models.json
+   * Check if a provider exists
+   */
+  private hasProvider(name: string): boolean {
+    return this.data.providers.some((p: Provider) => p.name === name);
+  }
+
+  /**
+   * Load from config.json
    */
   private load(): void {
-    if (!existsSync(this.modelsJsonPath)) {
+    if (!existsSync(this.configPath)) {
       // Initialize with empty data
-      this.data = { models: [], agentModels: {} };
+      this.data = { providers: [], models: [], agentModels: {} };
       return;
     }
 
     try {
-      const content = readFileSync(this.modelsJsonPath, "utf-8");
-      const parsed = JSON.parse(content) as Partial<ModelsJson>;
+      const content = readFileSync(this.configPath, "utf-8");
+      const parsed = JSON.parse(content) as Partial<OrchidConfig>;
       this.data = {
+        providers: parsed.providers ?? [],
         models: parsed.models ?? [],
         agentModels: parsed.agentModels ?? {}
       };
     } catch {
       // If file is corrupted, start fresh
-      this.data = { models: [], agentModels: {} };
+      this.data = { providers: [], models: [], agentModels: {} };
     }
   }
 
   /**
-   * Save to models.json
+   * Save to config.json
    */
   private save(): void {
-    const dir = dirname(this.modelsJsonPath);
+    const dir = dirname(this.configPath);
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
-    writeFileSync(this.modelsJsonPath, JSON.stringify(this.data, null, 2));
-  }
-
-  /**
-   * Check if a provider exists
-   */
-  private hasProvider(name: string): boolean {
-    return this.providersData.providers.some(p => p.name === name);
-  }
-
-  /**
-   * Load from providers.json
-   */
-  private loadProviders(): void {
-    if (!existsSync(this.providersJsonPath)) {
-      // Initialize with empty data
-      this.providersData = { providers: [] };
-      return;
-    }
-
-    try {
-      const content = readFileSync(this.providersJsonPath, "utf-8");
-      const parsed = JSON.parse(content) as Partial<ProvidersJson>;
-      this.providersData = {
-        providers: parsed.providers ?? []
-      };
-    } catch {
-      // If file is corrupted, start fresh
-      this.providersData = { providers: [] };
-    }
-  }
-
-  /**
-   * Save to providers.json
-   */
-  private saveProviders(): void {
-    const dir = dirname(this.providersJsonPath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    writeFileSync(this.providersJsonPath, JSON.stringify(this.providersData, null, 2));
+    writeFileSync(this.configPath, JSON.stringify(this.data, null, 2));
   }
 }
 
