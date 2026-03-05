@@ -9,6 +9,7 @@ dist/
 
 # Orchid runtime files (user-specific)
 .orchid/
+.swarm/
 
 # IDE
 .vscode/
