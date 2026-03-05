@@ -5,7 +5,7 @@ const { mockStartDaemon } = vi.hoisted(() => ({
   mockStartDaemon: vi.fn(),
 }));
 
-vi.mock("../../process/manager.js", () => ({
+vi.mock("../../core/files/process.js", () => ({
   startDaemon: mockStartDaemon,
 }));
 
