@@ -7,7 +7,11 @@
 export {
   ModelRepository,
   createModelRepository,
-  type Model,
-  type Provider,
   type ModelRepositoryOptions,
 } from "./model-repository.js";
+
+export type {
+  Model,
+  Provider,
+  ModelsJson,
+} from "./types.js";

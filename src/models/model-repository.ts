@@ -9,29 +9,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { AgentType } from "../agent-framework/session-repository.js";
 import { getOrchidDir } from "../config/paths.js";
-
-/**
- * Simple model reference
- */
-export interface Model {
-  provider: string;
-  modelId: string;
-}
-
-/**
- * Provider configuration
- */
-export interface Provider {
-  name: string;
-}
-
-/**
- * Models.json file structure
- */
-interface ModelsJson {
-  models: Model[];
-  agentModels: Partial<Record<AgentType, Model>>;
-}
+import type { Model, Provider, ModelsJson } from "./types.js";
 
 /**
  * Options for creating a ModelRepository
