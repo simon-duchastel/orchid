@@ -13,7 +13,7 @@ export default defineConfig([
     },
   },
   {
-    entry: { main: "src/main.ts" },
+    entry: { main: "src/cliMain.ts" },
     format: ["esm"],
     target: "node20",
     sourcemap: true,

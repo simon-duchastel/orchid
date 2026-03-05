@@ -12,7 +12,7 @@
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { WorktreeManager } from "../core/git/worktrees/index.js";
-import { getWorktreesDir, getOrchidDir } from "../config/paths.js";
+import { getWorktreesDir, getOrchidDir } from "../core/files/paths.js";
 import type { AgentInstanceManager } from "./agents/interface/index.js";
 import { SessionRepository, createSessionRepository } from "./session-repository.js";
 import { Task, TaskState, createTaskFromDyson } from "../core/tasks/index.js";

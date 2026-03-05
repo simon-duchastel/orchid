@@ -1,5 +1,5 @@
 /**
- * Orchid Initialization
+ * Orchid Directory Operations
  *
  * Handles the orchid init command workflow.
  * Creates workspace structure and clones repository.
@@ -8,13 +8,13 @@
 import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { cwd } from "node:process";
-import { cloneRepository, GitOperations, defaultGitOperations } from "../core/git/manager.js";
+import { cloneRepository, GitOperations, defaultGitOperations } from "../git/manager.js";
 import {
   getOrchidDir,
   getPidFile,
   getMainRepoDir,
   getWorktreesDir,
-} from "../config/paths.js";
+} from "./paths.js";
 import { isInitialized as isDysonSwarmInitialized, initialize as initializeDysonSwarm } from "dyson-swarm";
 
 /**
