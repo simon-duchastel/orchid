@@ -8,7 +8,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { AgentType } from "../agent-framework/session-repository.js";
-import { getOrchidDir } from "../config/paths.js";
+import { getOrchidDir } from "../core/files/paths.js";
 import type { Model, Provider, OrchidConfig } from "./types.js";
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Tests for init.ts module
+ * Tests for orchidDir.ts module
  * Tests orchid initialization workflow with dependency injection
  */
 
@@ -10,8 +10,8 @@ import {
   createOrchidStructure, 
   initializeOrchid,
   isDirectoryEmpty
-} from './init';
-import { MockGitOperations } from '../core/git/manager.js';
+} from './orchidDir';
+import { MockGitOperations } from '../git/manager.js';
 
 // Mock all file system operations
 vi.mock('node:fs', () => ({
@@ -39,14 +39,14 @@ import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, unlinkSync,
 import { execSync } from 'child_process';
 
 // Mock: paths module to control directory locations for testing
-vi.mock('../paths', () => ({
+vi.mock('./paths', () => ({
   getOrchidDir: () => '/tmp/test-orchid/.orchid',
   getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
   getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
   getWorktreesDir: () => '/tmp/test-orchid/worktrees',
 }));
 
-describe('init.ts - Orchid Initialization', () => {
+describe('orchidDir.ts - Orchid Initialization', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();

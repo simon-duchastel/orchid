@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command";
-import { stopDaemon } from "../../process/manager.js";
+import { stopDaemon } from "../../core/files/process.js";
 
 export async function downAction() {
   const result = await stopDaemon();

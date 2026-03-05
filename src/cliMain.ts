@@ -6,7 +6,7 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { getPidFile, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./config/paths.js";
+import { getPidFile, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./core/files/paths.js";
 import { PiSessionAdapter } from "./agent-framework/agents/interface/index.js";
 import { log } from "./core/logging/logger.js";
 

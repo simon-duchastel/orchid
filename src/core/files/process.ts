@@ -15,8 +15,8 @@ import {
   getErrorLogFile,
   getOrchidDir,
   getMainRepoDir,
-} from "../config/paths.js";
-import { validateOrchidStructure } from "../orchid-lifecycle/index.js";
+} from "./paths.js";
+import { validateOrchidStructure } from "./index.js";
 
 /**
  * Check if a process with the given PID is running
@@ -112,10 +112,10 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   }
 
   // Find the daemon script
-  // In development, it's at src/main.ts (run via tsx)
-  // In production, it's at dist/main.js
+  // In development, it's at src/cliMain.ts (run via tsx)
+  // In production, it's at dist/cliMain.js
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const daemonScript = join(__dirname, "..", "main.js");
+  const daemonScript = join(__dirname, "..", "cliMain.js");
   const isDev = !existsSync(daemonScript);
 
   // Open log files
@@ -127,7 +127,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
 
     if (isDev) {
       // Development mode - use tsx
-      const devDaemonScript = join(__dirname, "..", "main.ts");
+      const devDaemonScript = join(__dirname, "..", "cliMain.ts");
       child = spawn("npx", ["tsx", devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],

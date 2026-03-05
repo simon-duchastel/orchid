@@ -1,10 +1,10 @@
 /**
- * Tests for process-manager.ts
+ * Tests for process.ts
  * Tests basic functionality with proper mocking using Vitest
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { startDaemon, stopDaemon, getStatus } from './manager.js';
+import { startDaemon, stopDaemon, getStatus } from './process.js';
 import { spawn } from 'child_process';
 
 // Mock all file system operations
@@ -23,14 +23,14 @@ vi.mock('node:fs', () => ({
 import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs';
 
 // Mock orchid-lifecycle module
-vi.mock('../orchid-lifecycle/index.js', () => ({
+vi.mock('./index.js', () => ({
   validateOrchidStructure: vi.fn(),
 }));
 
-import { validateOrchidStructure } from '../orchid-lifecycle/index.js';
+import { validateOrchidStructure } from './index.js';
 
 // Mock paths module to control directory locations for testing
-vi.mock('../config/paths.js', () => ({
+vi.mock('./paths.js', () => ({
   getOrchidDir: () => '/tmp/test-orchid-daemon/.orchid',
   getPidFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.pid',
   getLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.log',
@@ -40,7 +40,7 @@ vi.mock('../config/paths.js', () => ({
 }));
 
 
-describe('process-manager.ts - Updated Logic', () => {
+describe('process.ts - Updated Logic', () => {
   beforeEach(() => {
     // Enable fake timers to speed up tests with setTimeout
     vi.useFakeTimers();
@@ -104,7 +104,7 @@ describe('process-manager.ts - Updated Logic', () => {
       mockSpawn.mockRestore();
     });
 
-it('should validate orchid structure when initialized', async () => {
+  it('should validate orchid structure when initialized', async () => {
       const mockValidate = vi.mocked(validateOrchidStructure);
       mockValidate.mockReturnValue(false); // Validation fails
 
