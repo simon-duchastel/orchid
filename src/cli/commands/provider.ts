@@ -195,7 +195,4 @@ export const providerCommand: any = new Command()
   .description("Manage AI model providers")
   .command("add", providerAddCommand)
   .command("remove", providerRemoveCommand)
-  .command("list", providerListCommand)
-  .action(() => {
-    providerCommand.showHelp();
-  });
+  .command("list", providerListCommand);
