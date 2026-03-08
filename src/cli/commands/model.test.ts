@@ -16,7 +16,7 @@ const { mockSelectPrompt } = vi.hoisted(() => ({
   mockSelectPrompt: vi.fn(),
 }));
 
-vi.mock("../../models/model-repository.js", () => ({
+vi.mock("../../agent-framework/models/model-repository.js", () => ({
   createModelRepository: vi.fn(() => ({
     getAllProviders: mockGetAllProviders,
     getAllModels: mockGetAllModels,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { AgentType } from "../agent-framework/session-repository.js";
+import { AgentType } from "../session-repository.js";
 import { ModelRepository, createModelRepository } from "./model-repository.js";
 import type { Model, Provider } from "./types.js";
 

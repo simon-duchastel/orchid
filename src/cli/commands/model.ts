@@ -2,8 +2,8 @@ import { Command } from "@cliffy/command";
 import { Input } from "@cliffy/prompt/input";
 import { Select } from "@cliffy/prompt/select";
 import { Table } from "@cliffy/table";
-import { createModelRepository } from "../../models/model-repository.js";
-import type { Model } from "../../models/types.js";
+import { createModelRepository } from "../../agent-framework/models/model-repository.js";
+import type { Model } from "../../agent-framework/models/types.js";
 
 /**
  * Parse model reference in format "provider/model-id" or just "model-id"

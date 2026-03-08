@@ -15,7 +15,7 @@ const { mockSecretPrompt } = vi.hoisted(() => ({
   mockSecretPrompt: vi.fn(),
 }));
 
-vi.mock("../../models/model-repository.js", () => ({
+vi.mock("../../agent-framework/models/model-repository.js", () => ({
   createModelRepository: vi.fn(() => ({
     getAllProviders: mockGetAllProviders,
     addProvider: mockAddProvider,
