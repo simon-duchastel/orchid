@@ -6,6 +6,7 @@
  */
 
 import type { Tool, ToolList } from "../../tools/types.js";
+import type { TaskRepository } from "../../tools/task-repository.js";
 
 /**
  * Represents an agent instance
@@ -47,6 +48,8 @@ export interface CreateAgentInstanceOptions {
   sessionFilePath?: string;
   /** List of tools this agent instance can use */
   tools: ToolList;
+  /** Task repository for task manipulation tools */
+  taskRepository: TaskRepository;
 }
 
 /**

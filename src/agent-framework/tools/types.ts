@@ -23,6 +23,24 @@ export enum Tool {
   FIND = "find",
   /** List directory contents */
   LS = "ls",
+  /** Create a new task */
+  TASK_CREATE = "task_create",
+  /** Get a single task by ID */
+  TASK_GET = "task_get",
+  /** List tasks with optional filters */
+  TASK_LIST = "task_list",
+  /** Update task properties */
+  TASK_UPDATE = "task_update",
+  /** Delete a task by ID */
+  TASK_DELETE = "task_delete",
+  /** Add a task dependency relationship */
+  TASK_ADD_DEPENDENCY = "task_add_dependency",
+  /** Remove a task dependency relationship */
+  TASK_REMOVE_DEPENDENCY = "task_remove_dependency",
+  /** Get tasks that a task depends on */
+  TASK_GET_DEPENDENCIES = "task_get_dependencies",
+  /** Get tasks that depend on a task */
+  TASK_GET_DEPENDENTS = "task_get_dependents",
 }
 
 /**

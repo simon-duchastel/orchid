@@ -7,6 +7,17 @@ const mocks = vi.hoisted(() => {
   const mockAgentInstanceRemove = vi.fn();
   const mockSendMessage = vi.fn();
   const mockGetOrCreateSession = vi.fn();
+    const mockTaskRepository = {
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      listTasks: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(),
+      addTaskDependency: vi.fn(),
+      removeTaskDependency: vi.fn(),
+      getTaskDependencies: vi.fn(),
+      getDependentTasks: vi.fn(),
+    };
 
   class MockAgentInstanceManager {
     createAgentInstance = mockAgentInstanceCreate;
@@ -25,6 +36,7 @@ const mocks = vi.hoisted(() => {
     mockGetOrCreateSession,
     MockAgentInstanceManager,
     MockSessionRepository,
+      mockTaskRepository,
   };
 });
 
@@ -36,11 +48,13 @@ vi.mock("../../templates/index.js", () => ({
 describe("MergerAgent", () => {
   let mockAgentInstanceManager: any;
   let mockSessionRepository: any;
+  let mockTaskRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockAgentInstanceManager = new mocks.MockAgentInstanceManager();
     mockSessionRepository = new mocks.MockSessionRepository();
+    mockTaskRepository = mocks.mockTaskRepository;
     mocks.mockGetOrCreateSession.mockReturnValue({
       filename: "merger-1",
       filePath: "/test/.orchid/sessions/task-1/merger-1.json",
@@ -64,6 +78,7 @@ describe("MergerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -81,6 +96,7 @@ describe("MergerAgent", () => {
         systemPrompt: "merger system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/merger-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        taskRepository: mockTaskRepository,
         tools: expect.arrayContaining([
           expect.any(String),
         ]),
@@ -99,6 +115,7 @@ describe("MergerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -121,6 +138,7 @@ describe("MergerAgent", () => {
       const onErrorMock = vi.fn();
 
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -150,6 +168,7 @@ describe("MergerAgent", () => {
       mocks.mockAgentInstanceRemove.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -169,6 +188,7 @@ describe("MergerAgent", () => {
 
     it("should not fail if stopped when not running", async () => {
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -196,6 +216,7 @@ describe("MergerAgent", () => {
       const onCompleteMock = vi.fn();
 
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -217,6 +238,7 @@ describe("MergerAgent", () => {
   describe("isRunning", () => {
     it("should return false before start", () => {
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
@@ -240,6 +262,7 @@ describe("MergerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,

@@ -10,6 +10,18 @@ const mocks = vi.hoisted(() => {
   const mockUnassignTask = vi.fn();
   const mockGetOrCreateSession = vi.fn();
 
+    const mockTaskRepository = {
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      listTasks: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(),
+      addTaskDependency: vi.fn(),
+      removeTaskDependency: vi.fn(),
+      getTaskDependencies: vi.fn(),
+      getDependentTasks: vi.fn(),
+    };
+
   class MockAgentInstanceManager {
     createAgentInstance = mockSessionCreate;
     removeAgentInstance = mockSessionRemove;
@@ -35,6 +47,7 @@ const mocks = vi.hoisted(() => {
     MockAgentInstanceManager,
     MockTaskManager,
     MockSessionRepository,
+    mockTaskRepository,
   };
 });
 
@@ -47,12 +60,14 @@ describe("ImplementorAgent", () => {
   let mockSessionManager: any;
   let mockTaskManager: any;
   let mockSessionRepository: any;
+  let mockTaskRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionManager = new mocks.MockAgentInstanceManager();
     mockTaskManager = new mocks.MockTaskManager();
     mockSessionRepository = new mocks.MockSessionRepository();
+    mockTaskRepository = mocks.mockTaskRepository;
     mocks.mockGetOrCreateSession.mockReturnValue({
       filename: "implementor-1",
       filePath: "/test/.orchid/sessions/task-1/implementor-1.json",
@@ -77,6 +92,7 @@ describe("ImplementorAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -101,6 +117,7 @@ describe("ImplementorAgent", () => {
         systemPrompt: "implementor system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/implementor-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        taskRepository: mockTaskRepository,
         tools: expect.arrayContaining([
           expect.any(String),
         ]),
@@ -120,6 +137,7 @@ describe("ImplementorAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -153,6 +171,7 @@ describe("ImplementorAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -182,6 +201,7 @@ describe("ImplementorAgent", () => {
       const onErrorMock = vi.fn();
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -219,6 +239,7 @@ describe("ImplementorAgent", () => {
       mocks.mockSessionRemove.mockResolvedValue(undefined);
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -245,6 +266,7 @@ describe("ImplementorAgent", () => {
 
     it("should not fail if stopped when not running", async () => {
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -280,6 +302,7 @@ describe("ImplementorAgent", () => {
       const onCompleteMock = vi.fn();
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -308,6 +331,7 @@ describe("ImplementorAgent", () => {
   describe("isRunning", () => {
     it("should return false before start", () => {
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -339,6 +363,7 @@ describe("ImplementorAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createImplementorAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",

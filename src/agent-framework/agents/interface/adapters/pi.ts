@@ -85,7 +85,11 @@ export class PiSessionAdapter implements AgentInstanceManager {
         : SessionManager.inMemory();
 
       // Map our Tool enum values to Pi SDK tools
-      const piTools = mapToolsToPiTools(options.tools, options.workingDirectory);
+      const piTools = mapToolsToPiTools({
+        tools: options.tools,
+        workingDirectory: options.workingDirectory,
+        taskRepository: options.taskRepository,
+      });
 
       const result: CreateAgentSessionResult = await createAgentSession({
         cwd: options.workingDirectory,

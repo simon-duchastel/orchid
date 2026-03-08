@@ -15,6 +15,8 @@ import { WorktreeManager } from "../core/git/worktrees/index.js";
 import { getWorktreesDir, getOrchidDir } from "../core/files/paths.js";
 import type { AgentInstanceManager } from "./agents/interface/index.js";
 import { SessionRepository, createSessionRepository } from "./session-repository.js";
+import { TaskRepository } from "./tools/task-repository.js";
+import { createDysonSwarmTaskRepository } from "./tools/dyson-swarm-task-repository.js";
 import { Task, TaskState, createTaskFromDyson } from "../core/tasks/index.js";
 import { join } from "node:path";
 import { createImplementorAgent, type ImplementorAgent } from "./agents/implementor.js";
@@ -46,6 +48,7 @@ export class AgentOrchestrator {
   private worktreeManager: WorktreeManager;
   private agentInstanceManager: AgentInstanceManager;
   private sessionRepository: SessionRepository;
+  private taskRepository: TaskRepository;
   private cwdProvider: () => string;
   private worktreesDir: string;
 
@@ -65,6 +68,9 @@ export class AgentOrchestrator {
     const orchidDir = getOrchidDir(this.cwdProvider);
     const sessionsDir = join(orchidDir, "sessions");
     this.sessionRepository = createSessionRepository({ sessionsDir });
+    
+    // Initialize task repository for agent task tools
+    this.taskRepository = createDysonSwarmTaskRepository({ cwdProvider: this.cwdProvider });
   }
 
   async start(): Promise<void> {
@@ -247,6 +253,7 @@ export class AgentOrchestrator {
         agentInstanceManager: this.agentInstanceManager,
         sessionRepository: this.sessionRepository,
         taskManager: this.taskManager,
+        taskRepository: this.taskRepository,
         onComplete: (taskId: string) => {
           this.handleImplementationComplete(taskId);
         },
@@ -295,6 +302,7 @@ export class AgentOrchestrator {
         worktreePath: worktreePath,
         agentInstanceManager: this.agentInstanceManager,
         sessionRepository: this.sessionRepository,
+        taskRepository: this.taskRepository,
         onComplete: (taskId: string) => {
           this.handleReviewComplete(taskId);
         },
@@ -342,6 +350,7 @@ export class AgentOrchestrator {
         worktreePath: worktreePath,
         agentInstanceManager: this.agentInstanceManager,
         sessionRepository: this.sessionRepository,
+        taskRepository: this.taskRepository,
         onComplete: (taskId: string) => {
           this.handleMergeComplete(taskId);
         },

@@ -7,6 +7,17 @@ const mocks = vi.hoisted(() => {
   const mockSessionRemove = vi.fn();
   const mockSendMessage = vi.fn();
   const mockGetOrCreateSession = vi.fn();
+    const mockTaskRepository = {
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      listTasks: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(),
+      addTaskDependency: vi.fn(),
+      removeTaskDependency: vi.fn(),
+      getTaskDependencies: vi.fn(),
+      getDependentTasks: vi.fn(),
+    };
 
   class MockAgentInstanceManager {
     createAgentInstance = mockSessionCreate;
@@ -25,6 +36,7 @@ const mocks = vi.hoisted(() => {
     mockGetOrCreateSession,
     MockAgentInstanceManager,
     MockSessionRepository,
+      mockTaskRepository,
   };
 });
 
@@ -36,11 +48,13 @@ vi.mock("../../templates/index.js", () => ({
 describe("ReviewerAgent", () => {
   let mockSessionManager: any;
   let mockSessionRepository: any;
+  let mockTaskRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionManager = new mocks.MockAgentInstanceManager();
     mockSessionRepository = new mocks.MockSessionRepository();
+    mockTaskRepository = mocks.mockTaskRepository;
     mocks.mockGetOrCreateSession.mockReturnValue({
       filename: "reviewer-1",
       filePath: "/test/.orchid/sessions/task-1/reviewer-1.json",
@@ -64,6 +78,7 @@ describe("ReviewerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -87,6 +102,7 @@ describe("ReviewerAgent", () => {
         systemPrompt: "reviewer system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/reviewer-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        taskRepository: mockTaskRepository,
         tools: expect.arrayContaining([
           expect.any(String),
         ]),
@@ -105,6 +121,7 @@ describe("ReviewerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -133,6 +150,7 @@ describe("ReviewerAgent", () => {
       const onErrorMock = vi.fn();
 
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -168,6 +186,7 @@ describe("ReviewerAgent", () => {
       mocks.mockSessionRemove.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -193,6 +212,7 @@ describe("ReviewerAgent", () => {
 
     it("should not fail if stopped when not running", async () => {
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -226,6 +246,7 @@ describe("ReviewerAgent", () => {
       const onCompleteMock = vi.fn();
 
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -253,6 +274,7 @@ describe("ReviewerAgent", () => {
   describe("isRunning", () => {
     it("should return false before start", () => {
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
@@ -282,6 +304,7 @@ describe("ReviewerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
+        taskRepository: mockTaskRepository,
         taskId: "task-1",
         dysonTask: {
           id: "task-1",
