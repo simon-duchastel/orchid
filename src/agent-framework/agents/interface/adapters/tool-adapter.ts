@@ -15,6 +15,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Tool, type ToolList } from "../../../tools/types.js";
+import type { TaskRepository } from "../../../tools/task-repository.js";
 import {
   createTaskCreateTool,
   createTaskGetTool,
@@ -30,10 +31,19 @@ import {
 // Pi tool type alias
 export type PiTool = AgentTool<any>;
 
+export interface MapToolsOptions {
+  /** Array of tools to map */
+  tools: ToolList;
+  /** Working directory for tool execution */
+  workingDirectory: string;
+  /** Task repository for task operations (required if using task tools) */
+  taskRepository?: TaskRepository;
+}
+
 /**
  * Maps a Tool enum value to its Pi SDK implementation
  */
-function mapToolToPiTool(tool: Tool, workingDirectory: string): PiTool {
+function mapToolToPiTool(tool: Tool, workingDirectory: string, taskRepository?: TaskRepository): PiTool {
   switch (tool) {
     case Tool.READ:
       return createReadTool(workingDirectory);
@@ -50,23 +60,50 @@ function mapToolToPiTool(tool: Tool, workingDirectory: string): PiTool {
     case Tool.LS:
       return createLsTool(workingDirectory);
     case Tool.TASK_CREATE:
-      return createTaskCreateTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_CREATE tool");
+      }
+      return createTaskCreateTool(taskRepository);
     case Tool.TASK_GET:
-      return createTaskGetTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_GET tool");
+      }
+      return createTaskGetTool(taskRepository);
     case Tool.TASK_LIST:
-      return createTaskListTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_LIST tool");
+      }
+      return createTaskListTool(taskRepository);
     case Tool.TASK_UPDATE:
-      return createTaskUpdateTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_UPDATE tool");
+      }
+      return createTaskUpdateTool(taskRepository);
     case Tool.TASK_DELETE:
-      return createTaskDeleteTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_DELETE tool");
+      }
+      return createTaskDeleteTool(taskRepository);
     case Tool.TASK_ADD_DEPENDENCY:
-      return createTaskAddDependencyTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_ADD_DEPENDENCY tool");
+      }
+      return createTaskAddDependencyTool(taskRepository);
     case Tool.TASK_REMOVE_DEPENDENCY:
-      return createTaskRemoveDependencyTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_REMOVE_DEPENDENCY tool");
+      }
+      return createTaskRemoveDependencyTool(taskRepository);
     case Tool.TASK_GET_DEPENDENCIES:
-      return createTaskGetDependenciesTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_GET_DEPENDENCIES tool");
+      }
+      return createTaskGetDependenciesTool(taskRepository);
     case Tool.TASK_GET_DEPENDENTS:
-      return createTaskGetDependentsTool();
+      if (!taskRepository) {
+        throw new Error("Task repository required for TASK_GET_DEPENDENTS tool");
+      }
+      return createTaskGetDependentsTool(taskRepository);
     default:
       // This should never happen if we handle all enum values
       throw new Error(`Unknown tool: ${String(tool)}`);
@@ -76,10 +113,18 @@ function mapToolToPiTool(tool: Tool, workingDirectory: string): PiTool {
 /**
  * Maps an array of Tool enum values to Pi SDK tool implementations
  *
- * @param tools - Array of tools to map
- * @param workingDirectory - The working directory for tool execution
+ * @param options - Configuration options
  * @returns Array of Pi SDK tool implementations
  */
-export function mapToolsToPiTools(tools: ToolList, workingDirectory: string): PiTool[] {
-  return tools.map((tool) => mapToolToPiTool(tool, workingDirectory));
+export function mapToolsToPiTools(options: MapToolsOptions): PiTool[] {
+  const { tools, workingDirectory, taskRepository } = options;
+  return tools.map((tool) => mapToolToPiTool(tool, workingDirectory, taskRepository));
+}
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use mapToolsToPiTools with options object instead
+ */
+export function mapToolsToPiToolsLegacy(tools: ToolList, workingDirectory: string): PiTool[] {
+  return tools.map((tool) => mapToolToPiTool(tool, workingDirectory, undefined));
 }

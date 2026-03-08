@@ -7,128 +7,7 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import type { AgentTool, AgentToolResult } from "@mariozechner/pi-agent-core";
-
-// Task type definitions matching dyson-swarm but decoupled
-export type TaskStatus = "draft" | "open" | "in-progress" | "closed";
-
-export interface TaskFrontmatter {
-  title: string;
-  assignee?: string;
-  dependsOn?: string[];
-}
-
-export interface Task {
-  id: string;
-  frontmatter: TaskFrontmatter;
-  description: string;
-  status: TaskStatus;
-}
-
-// In-memory task storage for agents (can be replaced with dyson-swarm implementation)
-class TaskStore {
-  private tasks: Map<string, Task> = new Map();
-  private idCounter = 0;
-
-  createTask(options: {
-    title: string;
-    description: string;
-    assignee?: string;
-    dependsOn?: string[];
-  }): Task {
-    const id = `task-${++this.idCounter}`;
-    const task: Task = {
-      id,
-      frontmatter: {
-        title: options.title,
-        assignee: options.assignee,
-        dependsOn: options.dependsOn || [],
-      },
-      description: options.description,
-      status: "draft",
-    };
-    this.tasks.set(id, task);
-    return task;
-  }
-
-  getTask(taskId: string): Task | null {
-    return this.tasks.get(taskId) || null;
-  }
-
-  listTasks(filter?: { status?: TaskStatus }): Task[] {
-    let tasks = Array.from(this.tasks.values());
-    if (filter?.status) {
-      tasks = tasks.filter((t) => t.status === filter.status);
-    }
-    return tasks;
-  }
-
-  updateTask(
-    taskId: string,
-    options: { title?: string; description?: string }
-  ): Task | null {
-    const task = this.tasks.get(taskId);
-    if (!task) return null;
-
-    if (options.title !== undefined) {
-      task.frontmatter.title = options.title;
-    }
-    if (options.description !== undefined) {
-      task.description = options.description;
-    }
-    return task;
-  }
-
-  deleteTask(taskId: string): boolean {
-    return this.tasks.delete(taskId);
-  }
-
-  addDependency(taskId: string, dependencyId: string): Task | null {
-    const task = this.tasks.get(taskId);
-    if (!task) return null;
-
-    if (!task.frontmatter.dependsOn) {
-      task.frontmatter.dependsOn = [];
-    }
-    if (!task.frontmatter.dependsOn.includes(dependencyId)) {
-      task.frontmatter.dependsOn.push(dependencyId);
-    }
-    return task;
-  }
-
-  removeDependency(taskId: string, dependencyId: string): Task | null {
-    const task = this.tasks.get(taskId);
-    if (!task) return null;
-
-    if (task.frontmatter.dependsOn) {
-      task.frontmatter.dependsOn = task.frontmatter.dependsOn.filter(
-        (id) => id !== dependencyId
-      );
-    }
-    return task;
-  }
-
-  getDependencies(taskId: string): Task[] {
-    const task = this.tasks.get(taskId);
-    if (!task || !task.frontmatter.dependsOn) return [];
-
-    return task.frontmatter.dependsOn
-      .map((id) => this.tasks.get(id))
-      .filter((t): t is Task => t !== undefined);
-  }
-
-  getDependents(taskId: string): Task[] {
-    const dependents: Task[] = [];
-    for (const task of this.tasks.values()) {
-      if (task.frontmatter.dependsOn?.includes(taskId)) {
-        dependents.push(task);
-      }
-    }
-    return dependents;
-  }
-}
-
-// Singleton task store instance
-const taskStore = new TaskStore();
+import type { TaskRepository, Task, TaskStatus } from "./task-repository.js";
 
 // Schema definitions
 const TaskCreateSchema = Type.Object({
@@ -188,8 +67,11 @@ const TaskGetDependentsSchema = Type.Object({
   }),
 });
 
-// Tool implementations
-export function createTaskCreateTool(): AgentTool<typeof TaskCreateSchema> {
+// Tool factory functions that accept a TaskRepository
+
+export function createTaskCreateTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskCreateSchema> {
   return {
     name: "task_create",
     description: "Create a new task with title, description, and optional dependencies",
@@ -199,7 +81,7 @@ export function createTaskCreateTool(): AgentTool<typeof TaskCreateSchema> {
       _toolCallId: string,
       params: Static<typeof TaskCreateSchema>
     ): Promise<AgentToolResult<{ task: Task }>> => {
-      const task = taskStore.createTask({
+      const task = await repository.createTask({
         title: params.title,
         description: params.description,
         assignee: params.assignee,
@@ -213,7 +95,9 @@ export function createTaskCreateTool(): AgentTool<typeof TaskCreateSchema> {
   };
 }
 
-export function createTaskGetTool(): AgentTool<typeof TaskGetSchema> {
+export function createTaskGetTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskGetSchema> {
   return {
     name: "task_get",
     description: "Retrieve a single task by its ID",
@@ -223,7 +107,7 @@ export function createTaskGetTool(): AgentTool<typeof TaskGetSchema> {
       _toolCallId: string,
       params: Static<typeof TaskGetSchema>
     ): Promise<AgentToolResult<{ task: Task | null }>> => {
-      const task = taskStore.getTask(params.taskId);
+      const task = await repository.getTask(params.taskId);
       const text = task
         ? `Task ${task.id}: ${task.frontmatter.title}\nStatus: ${task.status}\nDescription: ${task.description}`
         : `Task ${params.taskId} not found`;
@@ -235,7 +119,9 @@ export function createTaskGetTool(): AgentTool<typeof TaskGetSchema> {
   };
 }
 
-export function createTaskListTool(): AgentTool<typeof TaskListSchema> {
+export function createTaskListTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskListSchema> {
   return {
     name: "task_list",
     description: "List all tasks with optional filtering by status",
@@ -245,7 +131,7 @@ export function createTaskListTool(): AgentTool<typeof TaskListSchema> {
       _toolCallId: string,
       params: Static<typeof TaskListSchema>
     ): Promise<AgentToolResult<{ tasks: Task[] }>> => {
-      const tasks = taskStore.listTasks(
+      const tasks = await repository.listTasks(
         params.status ? { status: params.status as TaskStatus } : undefined
       );
       const taskList = tasks
@@ -260,7 +146,9 @@ export function createTaskListTool(): AgentTool<typeof TaskListSchema> {
   };
 }
 
-export function createTaskUpdateTool(): AgentTool<typeof TaskUpdateSchema> {
+export function createTaskUpdateTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskUpdateSchema> {
   return {
     name: "task_update",
     description: "Update a task's title and/or description",
@@ -270,7 +158,7 @@ export function createTaskUpdateTool(): AgentTool<typeof TaskUpdateSchema> {
       _toolCallId: string,
       params: Static<typeof TaskUpdateSchema>
     ): Promise<AgentToolResult<{ task: Task | null }>> => {
-      const task = taskStore.updateTask(params.taskId, {
+      const task = await repository.updateTask(params.taskId, {
         title: params.title,
         description: params.description,
       });
@@ -285,7 +173,9 @@ export function createTaskUpdateTool(): AgentTool<typeof TaskUpdateSchema> {
   };
 }
 
-export function createTaskDeleteTool(): AgentTool<typeof TaskDeleteSchema> {
+export function createTaskDeleteTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskDeleteSchema> {
   return {
     name: "task_delete",
     description: "Delete a task by its ID",
@@ -295,7 +185,7 @@ export function createTaskDeleteTool(): AgentTool<typeof TaskDeleteSchema> {
       _toolCallId: string,
       params: Static<typeof TaskDeleteSchema>
     ): Promise<AgentToolResult<{ success: boolean }>> => {
-      const success = taskStore.deleteTask(params.taskId);
+      const success = await repository.deleteTask(params.taskId);
       const text = success
         ? `Deleted task ${params.taskId}`
         : `Task ${params.taskId} not found`;
@@ -307,7 +197,9 @@ export function createTaskDeleteTool(): AgentTool<typeof TaskDeleteSchema> {
   };
 }
 
-export function createTaskAddDependencyTool(): AgentTool<typeof TaskAddDependencySchema> {
+export function createTaskAddDependencyTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskAddDependencySchema> {
   return {
     name: "task_add_dependency",
     description: "Add a dependency relationship between two tasks",
@@ -317,7 +209,7 @@ export function createTaskAddDependencyTool(): AgentTool<typeof TaskAddDependenc
       _toolCallId: string,
       params: Static<typeof TaskAddDependencySchema>
     ): Promise<AgentToolResult<{ task: Task | null }>> => {
-      const task = taskStore.addDependency(params.taskId, params.dependencyId);
+      const task = await repository.addTaskDependency(params.taskId, params.dependencyId);
       const text = task
         ? `Added dependency ${params.dependencyId} to task ${params.taskId}`
         : `Task ${params.taskId} not found`;
@@ -329,7 +221,9 @@ export function createTaskAddDependencyTool(): AgentTool<typeof TaskAddDependenc
   };
 }
 
-export function createTaskRemoveDependencyTool(): AgentTool<typeof TaskRemoveDependencySchema> {
+export function createTaskRemoveDependencyTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskRemoveDependencySchema> {
   return {
     name: "task_remove_dependency",
     description: "Remove a dependency relationship between two tasks",
@@ -339,7 +233,7 @@ export function createTaskRemoveDependencyTool(): AgentTool<typeof TaskRemoveDep
       _toolCallId: string,
       params: Static<typeof TaskRemoveDependencySchema>
     ): Promise<AgentToolResult<{ task: Task | null }>> => {
-      const task = taskStore.removeDependency(params.taskId, params.dependencyId);
+      const task = await repository.removeTaskDependency(params.taskId, params.dependencyId);
       const text = task
         ? `Removed dependency ${params.dependencyId} from task ${params.taskId}`
         : `Task ${params.taskId} not found`;
@@ -351,7 +245,9 @@ export function createTaskRemoveDependencyTool(): AgentTool<typeof TaskRemoveDep
   };
 }
 
-export function createTaskGetDependenciesTool(): AgentTool<typeof TaskGetDependenciesSchema> {
+export function createTaskGetDependenciesTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskGetDependenciesSchema> {
   return {
     name: "task_get_dependencies",
     description: "Get all tasks that a specific task depends on",
@@ -361,7 +257,7 @@ export function createTaskGetDependenciesTool(): AgentTool<typeof TaskGetDepende
       _toolCallId: string,
       params: Static<typeof TaskGetDependenciesSchema>
     ): Promise<AgentToolResult<{ dependencies: Task[] }>> => {
-      const dependencies = taskStore.getDependencies(params.taskId);
+      const dependencies = await repository.getTaskDependencies(params.taskId);
       const depList = dependencies
         .map((t) => `- ${t.id}: ${t.frontmatter.title}`)
         .join("\n");
@@ -377,7 +273,9 @@ export function createTaskGetDependenciesTool(): AgentTool<typeof TaskGetDepende
   };
 }
 
-export function createTaskGetDependentsTool(): AgentTool<typeof TaskGetDependentsSchema> {
+export function createTaskGetDependentsTool(
+  repository: TaskRepository
+): AgentTool<typeof TaskGetDependentsSchema> {
   return {
     name: "task_get_dependents",
     description: "Get all tasks that depend on a specific task",
@@ -387,7 +285,7 @@ export function createTaskGetDependentsTool(): AgentTool<typeof TaskGetDependent
       _toolCallId: string,
       params: Static<typeof TaskGetDependentsSchema>
     ): Promise<AgentToolResult<{ dependents: Task[] }>> => {
-      const dependents = taskStore.getDependents(params.taskId);
+      const dependents = await repository.getDependentTasks(params.taskId);
       const depList = dependents
         .map((t) => `- ${t.id}: ${t.frontmatter.title}`)
         .join("\n");
