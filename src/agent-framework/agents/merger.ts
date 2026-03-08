@@ -15,6 +15,7 @@ import {
   getMergerSystemPrompt 
 } from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
+import { Tool } from "../tools/types.js";
 
 export interface MergerAgentOptions {
   taskId: string;
@@ -73,6 +74,13 @@ export class MergerAgentImpl implements MergerAgent {
         systemPrompt: getMergerSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: [
+          Tool.READ,
+          Tool.BASH,
+          Tool.GREP,
+          Tool.FIND,
+          Tool.LS,
+        ],
       });
       log.log(`[merger] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
 

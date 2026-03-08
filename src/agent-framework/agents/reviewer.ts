@@ -17,6 +17,7 @@ import {
   getReviewerSystemPrompt 
 } from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
+import { Tool } from "../tools/types.js";
 
 export interface ReviewerAgentOptions {
   taskId: string;
@@ -78,6 +79,13 @@ export class ReviewerAgentImpl implements ReviewerAgent {
         systemPrompt: getReviewerSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: [
+          Tool.READ,
+          Tool.BASH,
+          Tool.GREP,
+          Tool.FIND,
+          Tool.LS,
+        ],
       });
       log.log(`[reviewer] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       

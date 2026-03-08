@@ -5,6 +5,8 @@
  * YAGNI - only includes methods and types currently used by agents.
  */
 
+import type { Tool, ToolList } from "../../tools/types.js";
+
 /**
  * Represents an agent instance
  */
@@ -43,6 +45,8 @@ export interface CreateAgentInstanceOptions {
   };
   /** Optional path to session file for resuming/attaching to existing session */
   sessionFilePath?: string;
+  /** List of tools this agent instance can use */
+  tools: ToolList;
 }
 
 /**

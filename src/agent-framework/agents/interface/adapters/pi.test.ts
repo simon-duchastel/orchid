@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Tool } from "../../../tools/types.js";
+
+const testTools = [Tool.READ, Tool.BASH, Tool.GREP, Tool.FIND, Tool.LS];
 
 const mockPrompt = vi.fn();
 const mockSubscribe = vi.fn();
@@ -17,6 +20,13 @@ vi.mock("@mariozechner/pi-coding-agent", () => ({
   SessionManager: {
     inMemory: () => ({}),
   },
+  createReadTool: vi.fn(() => ({ name: "read" })),
+  createBashTool: vi.fn(() => ({ name: "bash" })),
+  createEditTool: vi.fn(() => ({ name: "edit" })),
+  createWriteTool: vi.fn(() => ({ name: "write" })),
+  createGrepTool: vi.fn(() => ({ name: "grep" })),
+  createFindTool: vi.fn(() => ({ name: "find" })),
+  createLsTool: vi.fn(() => ({ name: "ls" })),
 }));
 
 vi.mock("node:fs", () => ({
@@ -73,6 +83,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       expect(session.taskId).toBe("task-1");
@@ -92,6 +103,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       await expect(
@@ -100,6 +112,7 @@ describe("PiSessionAdapter", () => {
           workingDirectory: "/test/sessions/task-1",
           systemPrompt: "fake system prompt for test",
           model: { provider: "synthetic", modelId: "kimi-2.5" },
+          tools: testTools,
         })
       ).rejects.toThrow("Agent instance for task task-1 already exists");
     });
@@ -116,6 +129,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
@@ -130,6 +144,7 @@ describe("PiSessionAdapter", () => {
           workingDirectory: "/test/sessions/task-1",
           systemPrompt: "fake system prompt for test",
           model: { provider: "synthetic", modelId: "kimi-2.5" },
+          tools: testTools,
         })
       ).rejects.toThrow("Failed to create Pi agent instance for task task-1: SDK Error");
     });
@@ -145,6 +160,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       expect(mockSubscribe).toHaveBeenCalled();
@@ -163,6 +179,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       const retrievedInstance = await adapter.getAgentInstance("task-1");
@@ -190,6 +207,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
       createdInstanceId = instance.instanceId;
     });
@@ -237,6 +255,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       // Simulate message_end event
@@ -270,6 +289,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       // Simulate turn_end event
@@ -302,6 +322,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       if (eventListener) {
@@ -336,6 +357,7 @@ describe("PiSessionAdapter", () => {
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: testTools,
       });
 
       if (eventListener) {

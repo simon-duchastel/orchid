@@ -81,6 +81,9 @@ describe("MergerAgent", () => {
         systemPrompt: "merger system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/merger-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: expect.arrayContaining([
+          expect.any(String),
+        ]),
       });
     });
 

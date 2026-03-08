@@ -17,6 +17,7 @@ import {
   getImplementorSystemPrompt 
 } from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
+import { Tool } from "../tools/types.js";
 
 export interface ImplementorAgentOptions {
   taskId: string;
@@ -92,6 +93,15 @@ export class ImplementorAgentImpl implements ImplementorAgent {
         systemPrompt: getImplementorSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: [
+          Tool.READ,
+          Tool.BASH,
+          Tool.EDIT,
+          Tool.WRITE,
+          Tool.GREP,
+          Tool.FIND,
+          Tool.LS,
+        ],
       });
       log.log(`[implementor] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       
