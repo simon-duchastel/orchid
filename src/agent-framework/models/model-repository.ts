@@ -7,8 +7,8 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { AgentType } from "../agent-framework/session-repository.js";
-import { getOrchidDir } from "../core/files/paths.js";
+import { AgentType } from "../session-repository.js";
+import { getOrchidDir } from "../../core/files/paths.js";
 import type { Model, Provider, OrchidConfig } from "./types.js";
 
 /**
@@ -72,7 +72,7 @@ export class ModelRepository {
     
     // Check if assigned to any agent
     for (const [agentType, assignedModel] of Object.entries(this.data.agentModels)) {
-      if (this.getModelKey(assignedModel.provider, assignedModel.modelId) === key) {
+      if (assignedModel && this.getModelKey(assignedModel.provider, assignedModel.modelId) === key) {
         throw new Error(`Cannot remove model ${key} - assigned to ${agentType}`);
       }
     }

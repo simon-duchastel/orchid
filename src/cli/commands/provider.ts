@@ -2,8 +2,8 @@ import { Command } from "@cliffy/command";
 import { Input } from "@cliffy/prompt/input";
 import { Secret } from "@cliffy/prompt/secret";
 import { Table } from "@cliffy/table";
-import { createModelRepository } from "../../models/model-repository.js";
-import type { Provider } from "../../models/types.js";
+import { createModelRepository } from "../../agent-framework/models/model-repository.js";
+import type { Provider } from "../../agent-framework/models/types.js";
 
 /**
  * Mask an API key for display, showing only the last 4 characters
