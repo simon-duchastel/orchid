@@ -15,6 +15,17 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { Tool, type ToolList } from "../../../tools/types.js";
+import {
+  createTaskCreateTool,
+  createTaskGetTool,
+  createTaskListTool,
+  createTaskUpdateTool,
+  createTaskDeleteTool,
+  createTaskAddDependencyTool,
+  createTaskRemoveDependencyTool,
+  createTaskGetDependenciesTool,
+  createTaskGetDependentsTool,
+} from "../../../tools/task-tools.js";
 
 // Pi tool type alias
 export type PiTool = AgentTool<any>;
@@ -38,6 +49,24 @@ function mapToolToPiTool(tool: Tool, workingDirectory: string): PiTool {
       return createFindTool(workingDirectory);
     case Tool.LS:
       return createLsTool(workingDirectory);
+    case Tool.TASK_CREATE:
+      return createTaskCreateTool();
+    case Tool.TASK_GET:
+      return createTaskGetTool();
+    case Tool.TASK_LIST:
+      return createTaskListTool();
+    case Tool.TASK_UPDATE:
+      return createTaskUpdateTool();
+    case Tool.TASK_DELETE:
+      return createTaskDeleteTool();
+    case Tool.TASK_ADD_DEPENDENCY:
+      return createTaskAddDependencyTool();
+    case Tool.TASK_REMOVE_DEPENDENCY:
+      return createTaskRemoveDependencyTool();
+    case Tool.TASK_GET_DEPENDENCIES:
+      return createTaskGetDependenciesTool();
+    case Tool.TASK_GET_DEPENDENTS:
+      return createTaskGetDependentsTool();
     default:
       // This should never happen if we handle all enum values
       throw new Error(`Unknown tool: ${String(tool)}`);
