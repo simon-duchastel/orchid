@@ -45,7 +45,7 @@ export interface CreateAgentInstanceOptions {
   };
   /** Optional path to session file for resuming/attaching to existing session */
   sessionFilePath?: string;
-  /** Explicit list of tools this agent instance can use */
+  /** List of tools this agent instance can use */
   tools: ToolList;
 }
 
