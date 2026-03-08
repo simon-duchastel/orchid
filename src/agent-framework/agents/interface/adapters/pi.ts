@@ -19,6 +19,7 @@ import {
   type AgentInstanceIdleCallback,
   type CreateAgentInstanceOptions,
 } from "../types.js";
+import { mapToolsToPiTools } from "../../../tools/pi-adapter.js";
 
 export interface PiSessionAdapterOptions {
   /** Base directory for all agent instances */
@@ -83,10 +84,14 @@ export class PiSessionAdapter implements AgentInstanceManager {
         ? SessionManager.open(options.sessionFilePath)
         : SessionManager.inMemory();
 
+      // Map our Tool enum values to Pi SDK tools
+      const piTools = mapToolsToPiTools(options.tools, options.workingDirectory);
+
       const result: CreateAgentSessionResult = await createAgentSession({
         cwd: options.workingDirectory,
         resourceLoader,
         sessionManager,
+        tools: piTools,
       });
 
       const instanceId = `pi-${options.taskId}-${Date.now()}`;

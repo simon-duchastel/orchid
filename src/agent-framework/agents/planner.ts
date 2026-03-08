@@ -15,6 +15,7 @@ import {
   getPlannerSystemPrompt 
 } from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
+import { Tool } from "../tools/types.js";
 
 export interface PlannerAgentOptions {
   sessionId: string;
@@ -73,12 +74,19 @@ export class PlannerAgentImpl implements PlannerAgent {
       const session = this.sessionRepository.getOrCreateSession(this.sessionId, AgentType.PLANNER);
       log.log(`[planner] Using session ${session.filename} for session ${this.sessionId}`);
 
+      // Planner explores the codebase without making changes
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.sessionId,
         workingDirectory: this.workingDirectory,
         systemPrompt: getPlannerSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: [
+          Tool.READ,
+          Tool.GREP,
+          Tool.FIND,
+          Tool.LS,
+        ],
       });
       log.log(`[planner] Created agent instance ${this.agentInstance.instanceId} for session ${this.sessionId}`);
 

@@ -15,6 +15,7 @@ import {
   getMergerSystemPrompt 
 } from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
+import { Tool } from "../tools/types.js";
 
 export interface MergerAgentOptions {
   taskId: string;
@@ -67,12 +68,20 @@ export class MergerAgentImpl implements MergerAgent {
       const session = this.sessionRepository.getOrCreateSession(this.taskId, AgentType.MERGER);
       log.log(`[merger] Using session ${session.filename} for task ${this.taskId}`);
 
+      // Merger primarily needs git operations and file reading
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
         systemPrompt: getMergerSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: [
+          Tool.READ,
+          Tool.BASH,
+          Tool.GREP,
+          Tool.FIND,
+          Tool.LS,
+        ],
       });
       log.log(`[merger] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
 

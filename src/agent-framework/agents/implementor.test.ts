@@ -101,6 +101,9 @@ describe("ImplementorAgent", () => {
         systemPrompt: "implementor system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/implementor-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: expect.arrayContaining([
+          expect.any(String),
+        ]),
       });
     });
 

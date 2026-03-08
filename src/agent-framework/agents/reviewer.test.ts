@@ -87,6 +87,9 @@ describe("ReviewerAgent", () => {
         systemPrompt: "reviewer system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/reviewer-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: expect.arrayContaining([
+          expect.any(String),
+        ]),
       });
     });
 

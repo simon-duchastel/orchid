@@ -17,6 +17,7 @@ import {
   getReviewerSystemPrompt 
 } from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
+import { Tool } from "../tools/types.js";
 
 export interface ReviewerAgentOptions {
   taskId: string;
@@ -72,12 +73,20 @@ export class ReviewerAgentImpl implements ReviewerAgent {
       const session = this.sessionRepository.getOrCreateSession(this.taskId, AgentType.REVIEWER);
       log.log(`[reviewer] Using session ${session.filename} for task ${this.taskId}`);
 
+      // Reviewer needs to read and analyze code, run tests, but shouldn't edit
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
         systemPrompt: getReviewerSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        tools: [
+          Tool.READ,
+          Tool.BASH,
+          Tool.GREP,
+          Tool.FIND,
+          Tool.LS,
+        ],
       });
       log.log(`[reviewer] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       
