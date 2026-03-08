@@ -98,10 +98,10 @@ describe("PlannerAgent", () => {
         systemPrompt: "planner system prompt",
         sessionFilePath: "/test/.orchid/sessions/session-1/planner-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        taskRepository: mockTaskRepository,
         tools: expect.arrayContaining([
           expect.any(String),
         ]),
-        taskRepository: mockTaskRepository,
       });
     });
 

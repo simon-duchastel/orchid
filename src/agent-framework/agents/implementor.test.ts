@@ -93,9 +93,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -119,10 +117,10 @@ describe("ImplementorAgent", () => {
         systemPrompt: "implementor system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/implementor-1.json",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        taskRepository: mockTaskRepository,
         tools: expect.arrayContaining([
           expect.any(String),
         ]),
-        taskRepository: mockTaskRepository,
       });
     });
 
@@ -140,9 +138,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -176,9 +172,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -208,9 +202,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -248,9 +240,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -277,9 +267,7 @@ describe("ImplementorAgent", () => {
     it("should not fail if stopped when not running", async () => {
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -315,9 +303,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -346,9 +332,7 @@ describe("ImplementorAgent", () => {
     it("should return false before start", () => {
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
@@ -380,9 +364,7 @@ describe("ImplementorAgent", () => {
 
       const agent = createImplementorAgent({
         taskRepository: mockTaskRepository,
-        taskRepository: mockTaskRepository,
         taskId: "task-1",
-        taskRepository: mockTaskRepository,
         dysonTask: {
           id: "task-1",
           frontmatter: { title: "Test Task" },
