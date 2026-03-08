@@ -68,7 +68,6 @@ export class MergerAgentImpl implements MergerAgent {
       const session = this.sessionRepository.getOrCreateSession(this.taskId, AgentType.MERGER);
       log.log(`[merger] Using session ${session.filename} for task ${this.taskId}`);
 
-      // Merger primarily needs git operations and file reading
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
