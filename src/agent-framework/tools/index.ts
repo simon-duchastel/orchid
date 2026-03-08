@@ -1,9 +1,7 @@
 /**
  * Tools Module
  *
- * Exports tool types and mapping functions for converting our Tool enum
- * to the underlying Pi SDK tools.
+ * Exports tool types for agents.
  */
 
 export { Tool, type ToolList } from "./types.js";
-export { mapToolsToPiTools } from "./pi-adapter.js";

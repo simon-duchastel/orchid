@@ -19,7 +19,7 @@ import {
   type AgentInstanceIdleCallback,
   type CreateAgentInstanceOptions,
 } from "../types.js";
-import { mapToolsToPiTools } from "../../../tools/pi-adapter.js";
+import { mapToolsToPiTools } from "./tool-adapter.js";
 
 export interface PiSessionAdapterOptions {
   /** Base directory for all agent instances */

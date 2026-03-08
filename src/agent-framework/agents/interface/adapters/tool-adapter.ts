@@ -14,7 +14,7 @@ import {
   createLsTool,
 } from "@mariozechner/pi-coding-agent";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { Tool, type ToolList } from "./types.js";
+import { Tool, type ToolList } from "../../../tools/types.js";
 
 // Pi tool type alias
 export type PiTool = AgentTool<any>;
