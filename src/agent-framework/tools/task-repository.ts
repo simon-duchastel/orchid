@@ -5,13 +5,59 @@
  * Allows swapping between different storage implementations (in-memory, dyson-swarm, etc.)
  */
 
-import type {
-  Task,
-  TaskStatus,
-  CreateTaskOptions,
-  UpdateTaskOptions,
-  TaskFilter,
-} from "dyson-swarm";
+/**
+ * Task status values
+ */
+export type TaskStatus = 'draft' | 'open' | 'in-progress' | 'closed';
+
+/**
+ * Task frontmatter/metadata
+ */
+export interface TaskFrontmatter {
+  title: string;
+  assignee?: string;
+  dependsOn?: string[];
+}
+
+/**
+ * Task entity
+ */
+export interface Task {
+  id: string;
+  frontmatter: TaskFrontmatter;
+  description: string;
+  status: TaskStatus;
+}
+
+/**
+ * Options for creating a task
+ */
+export interface CreateTaskOptions {
+  title: string;
+  description: string;
+  assignee?: string;
+  parentTaskId?: string;
+  dependsOn?: string[];
+}
+
+/**
+ * Options for updating a task
+ */
+export interface UpdateTaskOptions {
+  title?: string;
+  description?: string;
+  assignee?: string;
+  dependsOn?: string[];
+}
+
+/**
+ * Filter options for listing tasks
+ */
+export interface TaskFilter {
+  status?: TaskStatus;
+  taskId?: string;
+  dependsOn?: string;
+}
 
 /**
  * Repository interface for task operations
@@ -63,8 +109,3 @@ export interface TaskRepository {
    */
   getDependentTasks(taskId: string): Promise<Task[]>;
 }
-
-/**
- * Re-export types from dyson-swarm for convenience
- */
-export type { Task, TaskStatus, CreateTaskOptions, UpdateTaskOptions, TaskFilter };
