@@ -5,4 +5,5 @@ export enum AgentType {
   IMPLEMENTOR = "implementor",
   REVIEWER = "reviewer",
   MERGER = "merger",
+  PLANNER = "planner",
 }

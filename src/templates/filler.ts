@@ -4,11 +4,13 @@ import { readFileSync } from "node:fs";
 let agentPromptTemplate: string | undefined;
 let reviewerPromptTemplate: string | undefined;
 let mergerPromptTemplate: string | undefined;
+let plannerPromptTemplate: string | undefined;
 
 // System prompt cache
 let implementorSystemPrompt: string | undefined;
 let reviewerSystemPrompt: string | undefined;
 let mergerSystemPrompt: string | undefined;
+let plannerSystemPrompt: string | undefined;
 
 function getImplementorAgentPromptTemplate(): string {
   if (!agentPromptTemplate) {
@@ -40,6 +42,16 @@ function getMergerPromptTemplate(): string {
   return mergerPromptTemplate;
 }
 
+function getPlannerPromptTemplate(): string {
+  if (!plannerPromptTemplate) {
+    plannerPromptTemplate = readFileSync(
+      join(process.cwd(), "templates", "planner-agent-prompt.md"),
+      "utf-8"
+    );
+  }
+  return plannerPromptTemplate;
+}
+
 export interface AgentPromptData {
   taskTitle: string;
   taskDescription: string;
@@ -55,6 +67,12 @@ export interface ReviewerPromptData {
 export interface MergerPromptData {
   taskId: string;
   worktreePath: string;
+}
+
+export interface PlannerPromptData {
+  requestDescription: string;
+  context: string;
+  workingDirectory: string;
 }
 
 export function fillImplementorAgentPromptTemplate(data: AgentPromptData): string {
@@ -75,6 +93,13 @@ export function fillMergerPromptTemplate(data: MergerPromptData): string {
   return getMergerPromptTemplate()
     .replace(/\{\{taskId\}\}/g, data.taskId || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
+}
+
+export function fillPlannerPromptTemplate(data: PlannerPromptData): string {
+  return getPlannerPromptTemplate()
+    .replace(/\{\{requestDescription\}\}/g, data.requestDescription || "")
+    .replace(/\{\{context\}\}/g, data.context || "")
+    .replace(/\{\{workingDirectory\}\}/g, data.workingDirectory);
 }
 
 // System Prompt Retrieval Functions
@@ -107,4 +132,14 @@ export function getMergerSystemPrompt(): string {
     );
   }
   return mergerSystemPrompt;
+}
+
+export function getPlannerSystemPrompt(): string {
+  if (!plannerSystemPrompt) {
+    plannerSystemPrompt = readFileSync(
+      join(process.cwd(), "templates", "system", "planner-system-prompt.md"),
+      "utf-8"
+    );
+  }
+  return plannerSystemPrompt;
 }
