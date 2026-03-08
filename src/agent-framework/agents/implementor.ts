@@ -11,6 +11,7 @@ import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { type AgentInstance } from "./interface/types.js";
 import type { AgentInstanceManager } from "./interface/index.js";
 import { type SessionRepository } from "../session-repository.js";
+import { TaskRepository } from "../tools/task-repository.js";
 import { AgentType } from "../agent-type.js";
 import { 
   fillImplementorAgentPromptTemplate, 
@@ -26,6 +27,7 @@ export interface ImplementorAgentOptions {
   agentInstanceManager: AgentInstanceManager;
   sessionRepository: SessionRepository;
   taskManager: TaskManager;
+  taskRepository: TaskRepository;
   onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -52,6 +54,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
   private agentInstanceManager: AgentInstanceManager;
   private sessionRepository: SessionRepository;
   private taskManager: TaskManager;
+  private taskRepository: TaskRepository;
   private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
@@ -64,6 +67,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
     this.agentInstanceManager = options.agentInstanceManager;
     this.sessionRepository = options.sessionRepository;
     this.taskManager = options.taskManager;
+    this.taskRepository = options.taskRepository;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
@@ -93,6 +97,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
         systemPrompt: getImplementorSystemPrompt(),
         sessionFilePath: session.filePath,
         model: { provider: "synthetic", modelId: "kimi-2.5" },
+        taskRepository: this.taskRepository,
         tools: [
           Tool.READ,
           Tool.BASH,

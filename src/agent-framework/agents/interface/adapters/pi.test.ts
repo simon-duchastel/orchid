@@ -3,6 +3,18 @@ import { Tool } from "../../../tools/types.js";
 
 const testTools = [Tool.READ, Tool.BASH, Tool.GREP, Tool.FIND, Tool.LS];
 
+const mockTaskRepository = {
+  createTask: vi.fn(),
+  getTask: vi.fn(),
+  listTasks: vi.fn(),
+  updateTask: vi.fn(),
+  deleteTask: vi.fn(),
+  addTaskDependency: vi.fn(),
+  removeTaskDependency: vi.fn(),
+  getTaskDependencies: vi.fn(),
+  getDependentTasks: vi.fn(),
+};
+
 const mockPrompt = vi.fn();
 const mockSubscribe = vi.fn();
 const mockPiSession = {
@@ -84,6 +96,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       expect(session.taskId).toBe("task-1");
@@ -104,6 +117,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       await expect(
@@ -130,6 +144,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
@@ -161,6 +176,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       expect(mockSubscribe).toHaveBeenCalled();
@@ -180,6 +196,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       const retrievedInstance = await adapter.getAgentInstance("task-1");
@@ -208,6 +225,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
       createdInstanceId = instance.instanceId;
     });
@@ -256,6 +274,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       // Simulate message_end event
@@ -290,6 +309,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       // Simulate turn_end event
@@ -323,6 +343,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       if (eventListener) {
@@ -358,6 +379,7 @@ describe("PiSessionAdapter", () => {
         systemPrompt: "fake system prompt for test",
         model: { provider: "synthetic", modelId: "kimi-2.5" },
         tools: testTools,
+        taskRepository: mockTaskRepository,
       });
 
       if (eventListener) {

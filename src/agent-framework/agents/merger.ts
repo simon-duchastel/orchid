@@ -9,6 +9,7 @@
 
 import type { AgentInstance, AgentInstanceManager } from "./interface/index.js";
 import { type SessionRepository } from "../session-repository.js";
+import { TaskRepository } from "../tools/task-repository.js";
 import { AgentType } from "../agent-type.js";
 import { 
   fillMergerPromptTemplate,
@@ -22,6 +23,7 @@ export interface MergerAgentOptions {
   worktreePath: string;
   agentInstanceManager: AgentInstanceManager;
   sessionRepository: SessionRepository;
+  taskRepository: TaskRepository;
   onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -41,6 +43,7 @@ export class MergerAgentImpl implements MergerAgent {
   private agentInstance: AgentInstance | undefined;
   private agentInstanceManager: AgentInstanceManager;
   private sessionRepository: SessionRepository;
+  private taskRepository: TaskRepository;
   private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
@@ -51,6 +54,7 @@ export class MergerAgentImpl implements MergerAgent {
     this.worktreePath = options.worktreePath;
     this.agentInstanceManager = options.agentInstanceManager;
     this.sessionRepository = options.sessionRepository;
+    this.taskRepository = options.taskRepository;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
@@ -81,6 +85,7 @@ export class MergerAgentImpl implements MergerAgent {
           Tool.FIND,
           Tool.LS,
         ],
+        taskRepository: this.taskRepository,
       });
       log.log(`[merger] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
 

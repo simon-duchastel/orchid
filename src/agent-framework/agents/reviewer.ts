@@ -11,6 +11,7 @@ import { type Task as DysonTask } from "dyson-swarm";
 import { type AgentInstance } from "./interface/types.js";
 import type { AgentInstanceManager } from "./interface/index.js";
 import { type SessionRepository } from "../session-repository.js";
+import { TaskRepository } from "../tools/task-repository.js";
 import { AgentType } from "../agent-type.js";
 import { 
   fillReviewerPromptTemplate,
@@ -25,6 +26,7 @@ export interface ReviewerAgentOptions {
   worktreePath: string;
   agentInstanceManager: AgentInstanceManager;
   sessionRepository: SessionRepository;
+  taskRepository: TaskRepository;
   onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -45,6 +47,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
   private agentInstance: AgentInstance | undefined;
   private agentInstanceManager: AgentInstanceManager;
   private sessionRepository: SessionRepository;
+  private taskRepository: TaskRepository;
   private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
@@ -56,6 +59,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
     this.worktreePath = options.worktreePath;
     this.agentInstanceManager = options.agentInstanceManager;
     this.sessionRepository = options.sessionRepository;
+    this.taskRepository = options.taskRepository;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
@@ -86,6 +90,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
           Tool.FIND,
           Tool.LS,
         ],
+        taskRepository: this.taskRepository,
       });
       log.log(`[reviewer] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       

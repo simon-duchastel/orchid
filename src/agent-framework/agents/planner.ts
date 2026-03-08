@@ -9,6 +9,7 @@
 
 import type { AgentInstance, AgentInstanceManager } from "./interface/index.js";
 import { type SessionRepository } from "../session-repository.js";
+import { TaskRepository } from "../tools/task-repository.js";
 import { AgentType } from "../agent-type.js";
 import { 
   fillPlannerPromptTemplate,
@@ -24,6 +25,7 @@ export interface PlannerAgentOptions {
   workingDirectory: string;
   agentInstanceManager: AgentInstanceManager;
   sessionRepository: SessionRepository;
+  taskRepository: TaskRepository;
   onComplete: (sessionId: string) => void;
   onError: (sessionId: string, error: Error) => void;
 }
@@ -45,6 +47,7 @@ export class PlannerAgentImpl implements PlannerAgent {
   private agentInstance: AgentInstance | undefined;
   private agentInstanceManager: AgentInstanceManager;
   private sessionRepository: SessionRepository;
+  private taskRepository: TaskRepository;
   private onComplete: (sessionId: string) => void;
   private onError: (sessionId: string, error: Error) => void;
   private _isRunning = false;
@@ -57,6 +60,7 @@ export class PlannerAgentImpl implements PlannerAgent {
     this.workingDirectory = options.workingDirectory;
     this.agentInstanceManager = options.agentInstanceManager;
     this.sessionRepository = options.sessionRepository;
+    this.taskRepository = options.taskRepository;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
@@ -86,6 +90,7 @@ export class PlannerAgentImpl implements PlannerAgent {
           Tool.FIND,
           Tool.LS,
         ],
+        taskRepository: this.taskRepository,
       });
       log.log(`[planner] Created agent instance ${this.agentInstance.instanceId} for session ${this.sessionId}`);
 
