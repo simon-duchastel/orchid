@@ -127,6 +127,7 @@ describe("PiSessionAdapter", () => {
           systemPrompt: "fake system prompt for test",
           model: { provider: "synthetic", modelId: "kimi-2.5" },
           tools: testTools,
+        taskRepository: mockTaskRepository,
         })
       ).rejects.toThrow("Agent instance for task task-1 already exists");
     });
@@ -160,6 +161,7 @@ describe("PiSessionAdapter", () => {
           systemPrompt: "fake system prompt for test",
           model: { provider: "synthetic", modelId: "kimi-2.5" },
           tools: testTools,
+        taskRepository: mockTaskRepository,
         })
       ).rejects.toThrow("Failed to create Pi agent instance for task task-1: SDK Error");
     });

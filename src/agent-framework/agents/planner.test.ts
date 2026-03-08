@@ -7,6 +7,17 @@ const mocks = vi.hoisted(() => {
   const mockSessionRemove = vi.fn();
   const mockSendMessage = vi.fn();
   const mockGetOrCreateSession = vi.fn();
+    const mockTaskRepository = {
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      listTasks: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(),
+      addTaskDependency: vi.fn(),
+      removeTaskDependency: vi.fn(),
+      getTaskDependencies: vi.fn(),
+      getDependentTasks: vi.fn(),
+    };
 
   class MockAgentInstanceManager {
     createAgentInstance = mockSessionCreate;
@@ -25,6 +36,7 @@ const mocks = vi.hoisted(() => {
     mockGetOrCreateSession,
     MockAgentInstanceManager,
     MockSessionRepository,
+      mockTaskRepository,
   };
 });
 
@@ -36,11 +48,13 @@ vi.mock("../../templates/index.js", () => ({
 describe("PlannerAgent", () => {
   let mockSessionManager: any;
   let mockSessionRepository: any;
+  let mockTaskRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionManager = new mocks.MockAgentInstanceManager();
     mockSessionRepository = new mocks.MockSessionRepository();
+    mockTaskRepository = mocks.mockTaskRepository;
     mocks.mockGetOrCreateSession.mockReturnValue({
       filename: "planner-1",
       filePath: "/test/.orchid/sessions/session-1/planner-1.json",
@@ -64,6 +78,7 @@ describe("PlannerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -86,6 +101,7 @@ describe("PlannerAgent", () => {
         tools: expect.arrayContaining([
           expect.any(String),
         ]),
+        taskRepository: mockTaskRepository,
       });
     });
 
@@ -101,6 +117,7 @@ describe("PlannerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -125,6 +142,7 @@ describe("PlannerAgent", () => {
       const onErrorMock = vi.fn();
 
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -156,6 +174,7 @@ describe("PlannerAgent", () => {
       mocks.mockSessionRemove.mockResolvedValue(undefined);
 
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -177,6 +196,7 @@ describe("PlannerAgent", () => {
 
     it("should not fail if stopped when not running", async () => {
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -206,6 +226,7 @@ describe("PlannerAgent", () => {
       const onCompleteMock = vi.fn();
 
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -229,6 +250,7 @@ describe("PlannerAgent", () => {
   describe("isRunning", () => {
     it("should return false before start", () => {
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -254,6 +276,7 @@ describe("PlannerAgent", () => {
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
@@ -273,6 +296,7 @@ describe("PlannerAgent", () => {
   describe("agent identification", () => {
     it("should have correct agentId and sessionId", () => {
       const agent = createPlannerAgent({
+        taskRepository: mockTaskRepository,
         sessionId: "session-1",
         requestDescription: "Test planning request",
         context: "Test context",
