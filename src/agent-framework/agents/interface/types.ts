@@ -48,8 +48,8 @@ export interface CreateAgentInstanceOptions {
   sessionFilePath?: string;
   /** List of tools this agent instance can use */
   tools: ToolList;
-  /** Optional task repository for task manipulation tools */
-  taskRepository?: TaskRepository;
+  /** Task repository for task manipulation tools */
+  taskRepository: TaskRepository;
 }
 
 /**
