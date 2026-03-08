@@ -74,7 +74,6 @@ export class PlannerAgentImpl implements PlannerAgent {
       const session = this.sessionRepository.getOrCreateSession(this.sessionId, AgentType.PLANNER);
       log.log(`[planner] Using session ${session.filename} for session ${this.sessionId}`);
 
-      // Planner explores the codebase without making changes
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.sessionId,
         workingDirectory: this.workingDirectory,
