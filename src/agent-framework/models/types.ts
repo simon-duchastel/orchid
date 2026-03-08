@@ -4,7 +4,7 @@
  * Core type definitions for model configuration management.
  */
 
-import { AgentType } from "../agent-framework/session-repository.js";
+import { AgentType } from "../session-repository.js";
 
 /**
  * Simple model reference

@@ -72,7 +72,7 @@ export class ModelRepository {
     
     // Check if assigned to any agent
     for (const [agentType, assignedModel] of Object.entries(this.data.agentModels)) {
-      if (this.getModelKey(assignedModel.provider, assignedModel.modelId) === key) {
+      if (assignedModel && this.getModelKey(assignedModel.provider, assignedModel.modelId) === key) {
         throw new Error(`Cannot remove model ${key} - assigned to ${agentType}`);
       }
     }
