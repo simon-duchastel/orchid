@@ -87,7 +87,6 @@ export class ImplementorAgentImpl implements ImplementorAgent {
       log.log(`[implementor] Using session ${session.filename} for task ${this.taskId}`);
 
       // Create agent instance with implementor system prompt and session file
-      // Implementor gets all tools to write code
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
