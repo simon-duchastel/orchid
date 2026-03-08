@@ -73,7 +73,6 @@ export class ReviewerAgentImpl implements ReviewerAgent {
       const session = this.sessionRepository.getOrCreateSession(this.taskId, AgentType.REVIEWER);
       log.log(`[reviewer] Using session ${session.filename} for task ${this.taskId}`);
 
-      // Reviewer needs to read and analyze code, run tests, but shouldn't edit
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
