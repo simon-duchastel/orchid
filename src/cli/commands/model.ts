@@ -62,36 +62,61 @@ function validateProviderExists(
 }
 
 /**
+ * Get model ID interactively
+ */
+async function getModelIdInteractive(): Promise<string> {
+  const modelId = await Input.prompt({
+    message: "Enter the model ID:",
+    validate: (value) => {
+      if (!value || value.trim() === "") {
+        return "Model ID is required";
+      }
+      return true;
+    },
+  });
+
+  return modelId.trim();
+}
+
+/**
  * Action for adding a model
  */
 export async function modelAddAction(
   options: { provider?: string },
-  modelRef: string
+  modelRef?: string
 ): Promise<void> {
   const repo = createModelRepository();
 
-  // Parse the model reference
-  const parsed = parseModelRef(modelRef);
-  if (!parsed) {
-    console.error(`Error: Invalid model reference format: "${modelRef}"`);
-    console.error('Use format: "provider/model-id" or provide --provider flag');
-    process.exit(1);
-  }
-
-  // Get provider from reference or flag or prompt
   let providerName: string;
-  if (parsed.provider) {
-    providerName = parsed.provider;
-  } else if (options.provider) {
-    providerName = options.provider;
+  let modelId: string;
+
+  if (modelRef) {
+    // Parse the model reference
+    const parsed = parseModelRef(modelRef);
+    if (!parsed) {
+      console.error(`Error: Invalid model reference format: "${modelRef}"`);
+      console.error('Use format: "provider/model-id" or provide --provider flag');
+      process.exit(1);
+    }
+
+    // Get provider from reference or flag or prompt
+    if (parsed.provider) {
+      providerName = parsed.provider;
+    } else if (options.provider) {
+      providerName = options.provider;
+    } else {
+      providerName = await getProviderInteractive(repo, null, "add");
+    }
+
+    modelId = parsed.modelId;
   } else {
-    providerName = await getProviderInteractive(repo, null, "add");
+    // Interactive mode - no model reference provided
+    providerName = await getProviderInteractive(repo, options.provider ?? null, "add");
+    modelId = await getModelIdInteractive();
   }
 
   // Validate provider exists
   validateProviderExists(repo, providerName);
-
-  const modelId = parsed.modelId;
 
   // Check if model already exists
   const existingModels = repo.getAllModels();
@@ -221,7 +246,7 @@ export async function modelListAction(options: {
  */
 export const modelAddCommand: any = new Command()
   .description("Add a new model")
-  .arguments("<model-ref:string>")
+  .arguments("[model-ref:string]")
   .option("--provider <provider:string>", "Provider name (optional if included in model reference)")
   .action(modelAddAction);
 

@@ -96,10 +96,61 @@ describe('model add command', () => {
     });
   });
 
+  it('should enter interactive mode when no model-ref provided', async () => {
+    mockSelectPrompt.mockResolvedValue('anthropic');
+    mockInputPrompt.mockResolvedValue('claude-3-opus');
+    mockAddModel.mockImplementation(() => {});
+
+    await modelAddAction({});
+
+    expect(mockSelectPrompt).toHaveBeenCalledWith({
+      message: 'Select a provider to add the model:',
+      options: [
+        { value: 'anthropic', name: 'anthropic' },
+        { value: 'openai', name: 'openai' },
+      ],
+    });
+    expect(mockInputPrompt).toHaveBeenCalledWith({
+      message: 'Enter the model ID:',
+      validate: expect.any(Function),
+    });
+    expect(mockAddModel).toHaveBeenCalledWith({
+      provider: 'anthropic',
+      modelId: 'claude-3-opus',
+    });
+    expect(mockConsoleLog).toHaveBeenCalledWith('Successfully added model "anthropic/claude-3-opus"');
+  });
+
+  it('should use --provider flag in interactive mode when no model-ref provided', async () => {
+    mockInputPrompt.mockResolvedValue('gpt-4');
+    mockAddModel.mockImplementation(() => {});
+
+    await modelAddAction({ provider: 'openai' });
+
+    expect(mockSelectPrompt).not.toHaveBeenCalled();
+    expect(mockInputPrompt).toHaveBeenCalledWith({
+      message: 'Enter the model ID:',
+      validate: expect.any(Function),
+    });
+    expect(mockAddModel).toHaveBeenCalledWith({
+      provider: 'openai',
+      modelId: 'gpt-4',
+    });
+  });
+
   it('should exit with error if no providers configured', async () => {
     mockGetAllProviders.mockReturnValue([]);
 
     await expect(modelAddAction({}, 'some-model')).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith("Error: No providers configured. Add a provider first with 'orchid provider add <name>'");
+    expect(mockAddModel).not.toHaveBeenCalled();
+  });
+
+  it('should exit with error if no providers configured in interactive mode', async () => {
+    mockGetAllProviders.mockReturnValue([]);
+
+    await expect(modelAddAction({})).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith("Error: No providers configured. Add a provider first with 'orchid provider add <name>'");
     expect(mockAddModel).not.toHaveBeenCalled();
@@ -114,12 +165,34 @@ describe('model add command', () => {
     expect(mockAddModel).not.toHaveBeenCalled();
   });
 
+  it('should exit with error if provider from flag does not exist in interactive mode', async () => {
+    mockInputPrompt.mockResolvedValue('some-model');
+
+    await expect(modelAddAction({ provider: 'nonexistent' })).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider "nonexistent" not found');
+    expect(mockAddModel).not.toHaveBeenCalled();
+  });
+
   it('should exit with error if model already exists', async () => {
     mockGetAllModels.mockReturnValue([
       { provider: 'anthropic', modelId: 'claude-3-opus' },
     ]);
 
     await expect(modelAddAction({}, 'anthropic/claude-3-opus')).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: Model "anthropic/claude-3-opus" already exists');
+    expect(mockAddModel).not.toHaveBeenCalled();
+  });
+
+  it('should exit with error if model already exists in interactive mode', async () => {
+    mockGetAllModels.mockReturnValue([
+      { provider: 'anthropic', modelId: 'claude-3-opus' },
+    ]);
+    mockSelectPrompt.mockResolvedValue('anthropic');
+    mockInputPrompt.mockResolvedValue('claude-3-opus');
+
+    await expect(modelAddAction({})).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Model "anthropic/claude-3-opus" already exists');
     expect(mockAddModel).not.toHaveBeenCalled();
@@ -138,6 +211,18 @@ describe('model add command', () => {
     });
 
     await expect(modelAddAction({}, 'anthropic/claude-3')).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: Database error');
+  });
+
+  it('should handle errors from model repository in interactive mode', async () => {
+    mockSelectPrompt.mockResolvedValue('anthropic');
+    mockInputPrompt.mockResolvedValue('claude-3');
+    mockAddModel.mockImplementation(() => {
+      throw new Error('Database error');
+    });
+
+    await expect(modelAddAction({})).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Database error');
   });
