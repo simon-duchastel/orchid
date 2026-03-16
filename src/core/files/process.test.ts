@@ -17,10 +17,11 @@ vi.mock('node:fs', () => ({
   openSync: vi.fn(),
   closeSync: vi.fn(),
   unlinkSync: vi.fn(),
+  writeSync: vi.fn(),
 }));
 
 // Import mocked functions
-import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync, writeSync } from 'node:fs';
 
 // Mock orchid-lifecycle module
 vi.mock('./index.js', () => ({
@@ -52,6 +53,7 @@ describe('process.ts - Updated Logic', () => {
     vi.mocked(rmSync).mockImplementation(() => {});
     vi.mocked(openSync).mockReturnValue(1);
     vi.mocked(closeSync).mockImplementation(() => {});
+    vi.mocked(writeSync).mockImplementation(() => 0);
   });
 
   afterEach(() => {
@@ -196,6 +198,66 @@ describe('process.ts - Updated Logic', () => {
 
       expect(mockValidate).toHaveBeenCalled();
       // Result will be false due to mocked spawn, but validation should have passed
+
+      mockSpawn.mockRestore();
+    });
+
+    it('should write timestamps to both log files when starting daemon', async () => {
+      const mockValidate = vi.mocked(validateOrchidStructure);
+      mockValidate.mockReturnValue(true);
+
+      // Mock file system to simulate initialized workspace
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        if (pathStr.includes('main')) {
+          return true;
+        }
+        if (pathStr.includes('orchid.pid')) {
+          return false;
+        }
+        return false;
+      });
+
+      // Mock spawn
+      const mockSpawn = vi.spyOn({ spawn }, 'spawn').mockImplementation(() => {
+        const mockChild = {
+          unref: vi.fn(),
+          on: vi.fn(),
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+          stdin: { on: vi.fn() },
+          kill: vi.fn(),
+          pid: 12345,
+          connected: true,
+          exitCode: null,
+          signalCode: null,
+          killed: false,
+        } as any;
+        return mockChild;
+      });
+
+      vi.mocked(readFileSync).mockReturnValue('');
+
+      // Track writeSync calls
+      const writeSyncCalls: Array<{ fd: number; data: string }> = [];
+      vi.mocked(writeSync).mockImplementation((fd: number, data: string) => {
+        writeSyncCalls.push({ fd, data: String(data) });
+        return 0;
+      });
+
+      // Start the daemon operation
+      const startPromise = startDaemon();
+      await vi.advanceTimersByTimeAsync(1500);
+      await startPromise;
+
+      // Verify timestamps were written to both log files (first call is stdout, second is stderr)
+      expect(writeSyncCalls.length).toBeGreaterThanOrEqual(2);
+      
+      // Both calls should have timestamps and daemon message
+      expect(writeSyncCalls[0].data).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(writeSyncCalls[0].data).toContain('Starting orchid daemon');
+      expect(writeSyncCalls[1].data).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(writeSyncCalls[1].data).toContain('Starting orchid daemon');
 
       mockSpawn.mockRestore();
     });
