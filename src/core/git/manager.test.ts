@@ -3,7 +3,8 @@
  * Tests git operations with dependency injection for mocking
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import type { SimpleGit } from 'simple-git';
 import { 
   ProductionGitOperations, 
   MockGitOperations, 
@@ -12,12 +13,26 @@ import {
   defaultGitOperations 
 } from './manager.js';
 
+// Mock simple-git module
+vi.mock('simple-git', () => ({
+  default: vi.fn()
+}));
+
+// Import the mocked module to configure it
+import simpleGit from 'simple-git';
+
 describe('git-manager.ts - Git Operations', () => {
   describe('ProductionGitOperations', () => {
     let gitOps: ProductionGitOperations;
+    let mockClone: Mock;
 
     beforeEach(() => {
+      vi.clearAllMocks();
       gitOps = new ProductionGitOperations();
+      mockClone = vi.fn().mockResolvedValue(undefined);
+      (simpleGit as Mock).mockReturnValue({
+        clone: mockClone
+      } as unknown as SimpleGit);
     });
 
     describe('validateRepoUrl', () => {
@@ -52,9 +67,21 @@ describe('git-manager.ts - Git Operations', () => {
     });
 
     describe('clone', () => {
-      it('should attempt to clone repository', async () => {
+      it('should call simple-git clone with correct parameters', async () => {
+        const repoUrl = 'https://github.com/user/repo.git';
+        const targetDir = '/tmp/repo';
+        
+        await gitOps.clone(repoUrl, targetDir);
+        
+        expect(simpleGit).toHaveBeenCalled();
+        expect(mockClone).toHaveBeenCalledWith(repoUrl, targetDir);
+      });
+
+      it('should throw when clone fails', async () => {
+        mockClone.mockRejectedValueOnce(new Error('Clone failed'));
+        
         await expect(gitOps.clone('https://github.com/user/repo.git', '/tmp/repo'))
-          .rejects.toThrow();
+          .rejects.toThrow('Clone failed');
       });
     });
   });
@@ -124,10 +151,17 @@ describe('git-manager.ts - Git Operations', () => {
     });
 
     it('should use default git operations when none provided', async () => {
+      // Mock the clone call to succeed
+      const mockClone = vi.fn().mockResolvedValue(undefined);
+      (simpleGit as Mock).mockReturnValue({
+        clone: mockClone
+      } as unknown as SimpleGit);
+      
       const result = await cloneRepository('https://github.com/user/repo.git', '/tmp/repo');
       
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to clone repository');
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully cloned');
+      expect(mockClone).toHaveBeenCalledWith('https://github.com/user/repo.git', '/tmp/repo');
     });
   });
 
