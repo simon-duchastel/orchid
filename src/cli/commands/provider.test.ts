@@ -57,13 +57,14 @@ describe('provider add command', () => {
     mockGetAllProviders.mockReturnValue([]);
   });
 
-  it('should add provider non-interactively with all flags', async () => {
+  it('should add provider non-interactively with all required flags', async () => {
     mockAddProvider.mockImplementation(() => {});
 
-    await providerAddAction(
-      { url: 'https://api.example.com', 'api-key': 'secret-key-1234' },
-      'test-provider'
-    );
+    await providerAddAction({
+      name: 'test-provider',
+      url: 'https://api.example.com',
+      'api-key': 'secret-key-1234',
+    });
 
     expect(mockAddProvider).toHaveBeenCalledWith({
       name: 'test-provider',
@@ -80,10 +81,10 @@ describe('provider add command', () => {
   it('should add provider without API key when not provided', async () => {
     mockAddProvider.mockImplementation(() => {});
 
-    await providerAddAction(
-      { url: 'https://api.example.com' },
-      'test-provider'
-    );
+    await providerAddAction({
+      name: 'test-provider',
+      url: 'https://api.example.com',
+    });
 
     expect(mockAddProvider).toHaveBeenCalledWith({
       name: 'test-provider',
@@ -96,13 +97,19 @@ describe('provider add command', () => {
     expect(mockConsoleLog).toHaveBeenCalledWith('  API Key: (not set)');
   });
 
-  it('should prompt for URL interactively when not provided', async () => {
-    mockInputPrompt.mockResolvedValue('https://interactive.example.com');
+  it('should enter interactive mode when no flags provided', async () => {
+    mockInputPrompt
+      .mockResolvedValueOnce('interactive-provider')
+      .mockResolvedValueOnce('https://interactive.example.com');
     mockSecretPrompt.mockResolvedValue('interactive-api-key');
     mockAddProvider.mockImplementation(() => {});
 
-    await providerAddAction({}, 'interactive-provider');
+    await providerAddAction({});
 
+    expect(mockInputPrompt).toHaveBeenCalledWith({
+      message: 'Enter the provider name:',
+      validate: expect.any(Function),
+    });
     expect(mockInputPrompt).toHaveBeenCalledWith({
       message: 'Enter the API URL for provider "interactive-provider":',
       validate: expect.any(Function),
@@ -121,11 +128,13 @@ describe('provider add command', () => {
   });
 
   it('should handle empty API key from interactive prompt', async () => {
-    mockInputPrompt.mockResolvedValue('https://api.example.com');
+    mockInputPrompt
+      .mockResolvedValueOnce('no-key-provider')
+      .mockResolvedValueOnce('https://api.example.com');
     mockSecretPrompt.mockResolvedValue('');
     mockAddProvider.mockImplementation(() => {});
 
-    await providerAddAction({}, 'no-key-provider');
+    await providerAddAction({});
 
     expect(mockAddProvider).toHaveBeenCalledWith({
       name: 'no-key-provider',
@@ -136,25 +145,45 @@ describe('provider add command', () => {
     });
   });
 
+  it('should exit with error when only --name provided', async () => {
+    await expect(providerAddAction({
+      name: 'test-provider',
+    })).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: Both --name and --url are required');
+    expect(mockConsoleError).toHaveBeenCalledWith('Usage: orchid provider add --name <name> --url <url> [--api-key <key>]');
+    expect(mockConsoleError).toHaveBeenCalledWith('   or: orchid provider add    (for interactive mode)');
+    expect(mockAddProvider).not.toHaveBeenCalled();
+  });
+
+  it('should exit with error when only --url provided', async () => {
+    await expect(providerAddAction({
+      url: 'https://api.example.com',
+    })).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: Both --name and --url are required');
+    expect(mockAddProvider).not.toHaveBeenCalled();
+  });
+
   it('should exit with error if provider already exists', async () => {
     mockGetAllProviders.mockReturnValue([
       { name: 'existing-provider', auth: { url: 'https://api.example.com' } },
     ]);
 
-    await expect(providerAddAction(
-      { url: 'https://api.example.com' },
-      'existing-provider'
-    )).rejects.toThrow('process.exit called with code 1');
+    await expect(providerAddAction({
+      name: 'existing-provider',
+      url: 'https://api.example.com',
+    })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider "existing-provider" already exists');
     expect(mockAddProvider).not.toHaveBeenCalled();
   });
 
   it('should exit with error if URL is invalid', async () => {
-    await expect(providerAddAction(
-      { url: 'not-a-valid-url' },
-      'bad-url-provider'
-    )).rejects.toThrow('process.exit called with code 1');
+    await expect(providerAddAction({
+      name: 'bad-url-provider',
+      url: 'not-a-valid-url',
+    })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Invalid URL format: "not-a-valid-url"');
     expect(mockAddProvider).not.toHaveBeenCalled();
@@ -165,10 +194,10 @@ describe('provider add command', () => {
       throw new Error('Database error');
     });
 
-    await expect(providerAddAction(
-      { url: 'https://api.example.com' },
-      'error-provider'
-    )).rejects.toThrow('process.exit called with code 1');
+    await expect(providerAddAction({
+      name: 'error-provider',
+      url: 'https://api.example.com',
+    })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Database error');
   });
@@ -176,10 +205,11 @@ describe('provider add command', () => {
   it('should mask short API keys completely', async () => {
     mockAddProvider.mockImplementation(() => {});
 
-    await providerAddAction(
-      { url: 'https://api.example.com', 'api-key': '1234' },
-      'short-key-provider'
-    );
+    await providerAddAction({
+      name: 'short-key-provider',
+      url: 'https://api.example.com',
+      'api-key': '1234',
+    });
 
     expect(mockConsoleLog).toHaveBeenCalledWith('  API Key: ****');
   });
@@ -190,7 +220,7 @@ describe('provider remove command', () => {
     vi.clearAllMocks();
   });
 
-  it('should remove provider interactively when no argument provided', async () => {
+  it('should remove provider interactively when no --name flag provided', async () => {
     mockGetAllProviders.mockReturnValue([
       { name: 'anthropic', auth: { url: 'https://api.anthropic.com' } },
       { name: 'openai', auth: { url: 'https://api.openai.com' } },
@@ -198,7 +228,7 @@ describe('provider remove command', () => {
     mockSelectPrompt.mockResolvedValue('anthropic');
     mockRemoveProvider.mockReturnValue(true);
 
-    await providerRemoveAction({}, undefined);
+    await providerRemoveAction({});
 
     expect(mockSelectPrompt).toHaveBeenCalledWith({
       message: 'Select a provider to remove:',
@@ -214,19 +244,19 @@ describe('provider remove command', () => {
   it('should exit with error when no providers configured in interactive mode', async () => {
     mockGetAllProviders.mockReturnValue([]);
 
-    await expect(providerRemoveAction({}, undefined)).rejects.toThrow('process.exit called with code 1');
+    await expect(providerRemoveAction({})).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: No providers configured.');
     expect(mockRemoveProvider).not.toHaveBeenCalled();
   });
 
-  it('should remove provider successfully', async () => {
+  it('should remove provider successfully with --name flag', async () => {
     mockGetAllProviders.mockReturnValue([
       { name: 'test-provider', auth: { url: 'https://api.example.com' } },
     ]);
     mockRemoveProvider.mockReturnValue(true);
 
-    await providerRemoveAction({}, 'test-provider');
+    await providerRemoveAction({ name: 'test-provider' });
 
     expect(mockRemoveProvider).toHaveBeenCalledWith('test-provider');
     expect(mockConsoleLog).toHaveBeenCalledWith('Successfully removed provider "test-provider"');
@@ -237,7 +267,7 @@ describe('provider remove command', () => {
       { name: 'other-provider', auth: { url: 'https://api.example.com' } },
     ]);
 
-    await expect(providerRemoveAction({}, 'nonexistent-provider')).rejects.toThrow('process.exit called with code 1');
+    await expect(providerRemoveAction({ name: 'nonexistent-provider' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider "nonexistent-provider" not found');
     expect(mockRemoveProvider).not.toHaveBeenCalled();
@@ -249,7 +279,7 @@ describe('provider remove command', () => {
     ]);
     mockRemoveProvider.mockReturnValue(false);
 
-    await expect(providerRemoveAction({}, 'test-provider')).rejects.toThrow('process.exit called with code 1');
+    await expect(providerRemoveAction({ name: 'test-provider' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider "test-provider" not found');
   });
@@ -262,7 +292,7 @@ describe('provider remove command', () => {
       throw new Error('Provider in use by 2 model(s)');
     });
 
-    await expect(providerRemoveAction({}, 'test-provider')).rejects.toThrow('process.exit called with code 1');
+    await expect(providerRemoveAction({ name: 'test-provider' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider in use by 2 model(s)');
   });
@@ -279,7 +309,7 @@ describe('provider list command', () => {
     await providerListAction();
 
     expect(mockConsoleLog).toHaveBeenCalledWith('No providers configured.');
-    expect(mockConsoleLog).toHaveBeenCalledWith('Use "orchid provider add <name>" to add a provider.');
+    expect(mockConsoleLog).toHaveBeenCalledWith('Use "orchid provider add" to add a provider.');
   });
 
   it('should list providers with masked API keys', async () => {
