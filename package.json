@@ -8,9 +8,9 @@
     "orchid": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && bun build dist/cli.js --compile --outfile bin/orchid",
     "dev": "tsx src/cli/index.ts",
-    "start": "bun dist/cli/index.js",
+    "start": "./bin/orchid",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage"
