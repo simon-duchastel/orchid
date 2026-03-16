@@ -124,7 +124,6 @@ describe('git-manager.ts - Git Operations', () => {
     });
 
     it('should use default git operations when none provided', async () => {
-      // Uses real ProductionGitOperations, will fail due to network/auth in test environment
       const result = await cloneRepository('https://github.com/user/repo.git', '/tmp/repo');
       
       expect(result.success).toBe(false);
