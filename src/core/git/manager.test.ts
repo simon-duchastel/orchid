@@ -53,7 +53,6 @@ describe('git-manager.ts - Git Operations', () => {
 
     describe('clone', () => {
       it('should attempt to clone repository', async () => {
-        // This will fail due to network/auth in test environment, but confirms implementation works
         await expect(gitOps.clone('https://github.com/user/repo.git', '/tmp/repo'))
           .rejects.toThrow();
       });
