@@ -115,7 +115,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   // In development, it's at src/cliMain.ts (run via bun)
   // In production, it's at dist/cliMain.js
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const daemonScript = join(__dirname, "..", "cliMain.js");
+  const daemonScript = join(__dirname, "..", "..", "cliMain.js");
   const isDev = !existsSync(daemonScript);
 
   // Open log files
@@ -126,7 +126,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     let child;
 
     if (isDev) {
-      const devDaemonScript = join(__dirname, "..", "cliMain.ts");
+      const devDaemonScript = join(__dirname, "..", "..", "cliMain.ts");
       child = spawn("bun", [devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
