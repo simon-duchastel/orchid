@@ -1,6 +1,7 @@
 import { Command } from "@cliffy/command";
 import { Input } from "@cliffy/prompt/input";
 import { Secret } from "@cliffy/prompt/secret";
+import { Select } from "@cliffy/prompt/select";
 import { Table } from "@cliffy/table";
 import { createModelRepository } from "../../agent-framework/models/model-repository.js";
 import type { Provider } from "../../agent-framework/models/types.js";
@@ -23,21 +24,35 @@ function maskApiKey(apiKey: string | undefined): string {
  * Cliffy passes: options first, then arguments
  */
 export async function providerAddAction(
-  options: { url?: string; "api-key"?: string },
-  providerName: string
+  options: { name?: string; url?: string; "api-key"?: string }
 ): Promise<void> {
   const repo = createModelRepository();
 
-  // Check if provider already exists
-  const existingProviders = repo.getAllProviders();
-  if (existingProviders.some((p) => p.name === providerName)) {
-    console.error(`Error: Provider "${providerName}" already exists`);
-    process.exit(1);
-  }
+  let providerName: string;
+  let url: string;
+  let apiKey: string | undefined;
 
-  // Get URL interactively if not provided
-  let url = options.url;
-  if (!url) {
+  // Check if all required params are provided or none are provided
+  const hasName = !!options.name;
+  const hasUrl = !!options.url;
+
+  if (hasName && hasUrl) {
+    // All required params provided: non-interactive mode
+    providerName = options.name!;
+    url = options.url!;
+    apiKey = options["api-key"];
+  } else if (!hasName && !hasUrl) {
+    // No required params provided: interactive mode
+    providerName = await Input.prompt({
+      message: "Enter the provider name:",
+      validate: (value) => {
+        if (!value || value.trim() === "") {
+          return "Provider name is required";
+        }
+        return true;
+      },
+    });
+
     url = await Input.prompt({
       message: `Enter the API URL for provider "${providerName}":`,
       validate: (value) => {
@@ -52,19 +67,7 @@ export async function providerAddAction(
         }
       },
     });
-  }
 
-  // Validate URL format
-  try {
-    new URL(url);
-  } catch {
-    console.error(`Error: Invalid URL format: "${url}"`);
-    process.exit(1);
-  }
-
-  // Get API key interactively if not provided
-  let apiKey = options["api-key"];
-  if (apiKey === undefined) {
     // Prompt for API key - user can leave it empty
     apiKey = await Secret.prompt({
       message: `Enter the API key for provider "${providerName}" (leave empty if not required):`,
@@ -75,6 +78,27 @@ export async function providerAddAction(
     if (apiKey === "") {
       apiKey = undefined;
     }
+  } else {
+    // Some but not all required params provided: error
+    console.error("Error: Both --name and --url are required");
+    console.error("Usage: orchid provider add --name <name> --url <url> [--api-key <key>]");
+    console.error("   or: orchid provider add    (for interactive mode)");
+    process.exit(1);
+  }
+
+  // Check if provider already exists
+  const existingProviders = repo.getAllProviders();
+  if (existingProviders.some((p) => p.name === providerName)) {
+    console.error(`Error: Provider "${providerName}" already exists`);
+    process.exit(1);
+  }
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch {
+    console.error(`Error: Invalid URL format: "${url}"`);
+    process.exit(1);
   }
 
   // Create the provider
@@ -104,24 +128,51 @@ export async function providerAddAction(
  * Cliffy passes: options first, then arguments
  */
 export async function providerRemoveAction(
-  options: { force?: boolean },
-  providerName: string
+  options: { name?: string; force?: boolean }
 ): Promise<void> {
   const repo = createModelRepository();
 
+  let name: string;
+
+  if (options.name) {
+    // Name provided: non-interactive mode
+    name = options.name;
+  } else if (!options.name) {
+    // No name provided: interactive mode
+    const existingProviders = repo.getAllProviders();
+
+    if (existingProviders.length === 0) {
+      console.error("Error: No providers configured.");
+      console.error('Use "orchid provider add" to add a provider.');
+      process.exit(1);
+    }
+
+    name = await Select.prompt({
+      message: "Select a provider to remove:",
+      options: existingProviders.map((p) => ({
+        value: p.name,
+        name: `${p.name} (${p.auth.url})`,
+      })),
+    });
+  } else {
+    // This should not happen due to type checking, but just in case
+    console.error("Error: Unexpected state in provider remove");
+    process.exit(1);
+  }
+
   // Check if provider exists
   const existingProviders = repo.getAllProviders();
-  if (!existingProviders.some((p) => p.name === providerName)) {
-    console.error(`Error: Provider "${providerName}" not found`);
+  if (!existingProviders.some((p) => p.name === name)) {
+    console.error(`Error: Provider "${name}" not found`);
     process.exit(1);
   }
 
   try {
-    const removed = repo.removeProvider(providerName);
+    const removed = repo.removeProvider(name);
     if (removed) {
-      console.log(`Successfully removed provider "${providerName}"`);
+      console.log(`Successfully removed provider "${name}"`);
     } else {
-      console.error(`Error: Provider "${providerName}" not found`);
+      console.error(`Error: Provider "${name}" not found`);
       process.exit(1);
     }
   } catch (error) {
@@ -141,7 +192,7 @@ export async function providerListAction(): Promise<void> {
 
   if (providers.length === 0) {
     console.log("No providers configured.");
-    console.log('Use "orchid provider add <name>" to add a provider.');
+    console.log('Use "orchid provider add" to add a provider.');
     return;
   }
 
@@ -167,9 +218,9 @@ export async function providerListAction(): Promise<void> {
  */
 export const providerAddCommand: any = new Command()
   .description("Add a new provider")
-  .arguments("<provider-name:string>")
-  .option("--url <url:string>", "Provider API URL")
-  .option("--api-key <key:string>", "Provider API key")
+  .option("-n, --name <name:string>", "Provider name")
+  .option("-u, --url <url:string>", "Provider API URL")
+  .option("-k, --api-key <key:string>", "Provider API key")
   .action(providerAddAction);
 
 /**
@@ -177,7 +228,7 @@ export const providerAddCommand: any = new Command()
  */
 export const providerRemoveCommand: any = new Command()
   .description("Remove a provider")
-  .arguments("<provider-name:string>")
+  .option("-n, --name <name:string>", "Provider name")
   .option("-f, --force", "Force removal without confirmation (not yet implemented)")
   .action(providerRemoveAction);
 
