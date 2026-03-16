@@ -35,7 +35,7 @@ vi.mock('./paths.js', () => ({
   getPidFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.pid',
   getLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.log',
   getErrorLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.error.log',
-  getMainRepoDir: () => '/tmp/test-orchid-daemon/.orchid/main',
+  getMainRepoDir: () => '/tmp/test-orchid-daemon/main',
   getWorktreesDir: () => '/tmp/test-orchid-daemon/worktrees',
 }));
 

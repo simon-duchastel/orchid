@@ -68,6 +68,7 @@ vi.mock("../core/git/worktrees/index.js", () => ({
 vi.mock("../config/paths.js", () => ({
   getWorktreesDir: () => "/test/worktrees",
   getOrchidDir: () => "/test/.orchid",
+  getMainRepoDir: () => "/test/main",
 }));
 
 vi.mock("./session-repository.js", () => ({
