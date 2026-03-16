@@ -114,6 +114,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   // Find the daemon script
   // In development, it's at src/cliMain.ts (run via bun)
   // In production, it's at dist/cliMain.js
+  // In compiled mode, we run the same binary with "daemon" command
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const daemonScript = join(__dirname, "..", "..", "cliMain.js");
   const isDev = !existsSync(daemonScript);
@@ -125,7 +126,18 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   try {
     let child;
 
-    if (isDev) {
+    // Check if we're running as a compiled binary (bun --compile output)
+    // Compiled binaries don't have a .js extension in argv[1] and the file doesn't exist as a separate script
+    const isCompiledBinary = !process.argv[1]?.endsWith(".js") && !process.argv[1]?.endsWith(".ts");
+
+    if (isCompiledBinary) {
+      // Running as compiled binary - spawn the same binary with "daemon" command
+      const binaryPath = process.argv[1];
+      child = spawn(binaryPath, ["daemon"], {
+        detached: true,
+        stdio: ["ignore", outFd, errFd],
+      });
+    } else if (isDev) {
       const devDaemonScript = join(__dirname, "..", "..", "cliMain.ts");
       child = spawn("bun", [devDaemonScript], {
         detached: true,

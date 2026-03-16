@@ -8,6 +8,7 @@ import { statusCommand } from "./commands/status.js";
 import { providerCommand } from "./commands/provider.js";
 import { modelCommand } from "./commands/model.js";
 import { tuiCommand } from "./commands/tui.js";
+import { daemonCommand } from "./commands/daemon.js";
 import { setVerboseLogging } from "../core/logging/index.js";
 
 await new Command()
@@ -29,4 +30,5 @@ await new Command()
   .command("provider", providerCommand)
   .command("model", modelCommand)
   .command("tui", tuiCommand)
+  .command("daemon", daemonCommand)
   .parse();

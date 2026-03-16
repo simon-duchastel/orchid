@@ -10,7 +10,7 @@ import { getPidFile, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./cor
 import { PiSessionAdapter } from "./agent-framework/agents/interface/index.js";
 import { log } from "./core/logging/logger.js";
 
-async function main() {
+export async function startDaemonProcess() {
   const orchidDir = getOrchidDir();
   const pidFile = getPidFile();
   const mainRepoDir = getMainRepoDir();
@@ -54,10 +54,10 @@ async function main() {
   }
 }
 
-// Export main for testing
-export { main };
+// Backward compatibility: also export as main for testing
+export { startDaemonProcess as main };
 
 // Run main if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
+  startDaemonProcess();
 }
