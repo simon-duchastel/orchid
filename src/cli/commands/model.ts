@@ -6,31 +6,12 @@ import { createModelRepository } from "../../agent-framework/models/model-reposi
 import type { Model } from "../../agent-framework/models/types.js";
 
 /**
- * Parse model reference in format "provider/model-id" or just "model-id"
- * Returns { provider, modelId } or null if parsing fails
- */
-function parseModelRef(modelRef: string): { provider: string | null; modelId: string } | null {
-  const parts = modelRef.split("/");
-  if (parts.length === 2) {
-    return { provider: parts[0], modelId: parts[1] };
-  } else if (parts.length === 1) {
-    return { provider: null, modelId: parts[0] };
-  }
-  return null;
-}
-
-/**
  * Get provider interactively if not provided
  */
 async function getProviderInteractive(
   repo: ReturnType<typeof createModelRepository>,
-  providedProvider: string | null,
   operation: string
 ): Promise<string> {
-  if (providedProvider) {
-    return providedProvider;
-  }
-
   const providers = repo.getAllProviders();
 
   if (providers.length === 0) {
@@ -44,6 +25,23 @@ async function getProviderInteractive(
   });
 
   return selected;
+}
+
+/**
+ * Get model ID interactively
+ */
+async function getModelIdInteractive(): Promise<string> {
+  const modelId = await Input.prompt({
+    message: "Enter the model ID:",
+    validate: (value) => {
+      if (!value || value.trim() === "") {
+        return "Model ID is required";
+      }
+      return true;
+    },
+  });
+
+  return modelId.trim();
 }
 
 /**
@@ -65,33 +63,31 @@ function validateProviderExists(
  * Action for adding a model
  */
 export async function modelAddAction(
-  options: { provider?: string },
-  modelRef: string
+  options: { provider?: string; model?: string }
 ): Promise<void> {
   const repo = createModelRepository();
 
-  // Parse the model reference
-  const parsed = parseModelRef(modelRef);
-  if (!parsed) {
-    console.error(`Error: Invalid model reference format: "${modelRef}"`);
-    console.error('Use format: "provider/model-id" or provide --provider flag');
-    process.exit(1);
-  }
-
-  // Get provider from reference or flag or prompt
   let providerName: string;
-  if (parsed.provider) {
-    providerName = parsed.provider;
-  } else if (options.provider) {
+  let modelId: string;
+
+  if (options.provider && options.model) {
+    // Both provided: fully non-interactive
     providerName = options.provider;
+    modelId = options.model;
+  } else if (!options.provider && !options.model) {
+    // Neither provided: fully interactive mode
+    providerName = await getProviderInteractive(repo, "add");
+    modelId = await getModelIdInteractive();
   } else {
-    providerName = await getProviderInteractive(repo, null, "add");
+    // Only one provided: error
+    console.error("Error: Both --provider and --model are required");
+    console.error("Usage: orchid model add --model <model-id> --provider <provider>");
+    console.error("   or: orchid model add    (for interactive mode)");
+    process.exit(1);
   }
 
   // Validate provider exists
   validateProviderExists(repo, providerName);
-
-  const modelId = parsed.modelId;
 
   // Check if model already exists
   const existingModels = repo.getAllModels();
@@ -121,76 +117,27 @@ export async function modelAddAction(
  * Action for removing a model
  */
 export async function modelRemoveAction(
-  options: { provider?: string; force?: boolean },
-  modelRef?: string
+  options: { provider?: string; model?: string; force?: boolean }
 ): Promise<void> {
   const repo = createModelRepository();
 
   let providerName: string;
   let modelId: string;
 
-  if (!modelRef) {
-    // Interactive mode - show list of all models
-    const existingModels = repo.getAllModels();
-
-    if (existingModels.length === 0) {
-      console.error("Error: No models configured.");
-      console.error('Use "orchid model add <provider>/<model-id>" to add a model.');
-      process.exit(1);
-    }
-
-    const selectedModel = await Select.prompt({
-      message: "Select a model to remove:",
-      options: existingModels.map((m) => ({
-        value: `${m.provider}/${m.modelId}`,
-        name: `${m.provider}/${m.modelId}`,
-      })),
-    });
-
-    const parsed = parseModelRef(selectedModel);
-    if (!parsed) {
-      console.error(`Error: Invalid model selection: "${selectedModel}"`);
-      process.exit(1);
-    }
-
-    providerName = parsed.provider!;
-    modelId = parsed.modelId;
+  if (options.provider && options.model) {
+    // Both provided: fully non-interactive
+    providerName = options.provider;
+    modelId = options.model;
+  } else if (!options.provider && !options.model) {
+    // Neither provided: fully interactive mode
+    providerName = await getProviderInteractive(repo, "remove");
+    modelId = await getModelIdInteractive();
   } else {
-    // Parse the model reference
-    const parsed = parseModelRef(modelRef);
-    if (!parsed) {
-      console.error(`Error: Invalid model reference format: "${modelRef}"`);
-      console.error('Use format: "provider/model-id" or provide --provider flag');
-      process.exit(1);
-    }
-
-    // Get provider from reference or flag or prompt
-    if (parsed.provider) {
-      providerName = parsed.provider;
-    } else if (options.provider) {
-      providerName = options.provider;
-    } else {
-      // For removal, we need to find which providers have this model
-      const existingModels = repo.getAllModels();
-      const modelsWithId = existingModels.filter((m) => m.modelId === parsed.modelId);
-
-      if (modelsWithId.length === 0) {
-        console.error(`Error: Model "${modelRef}" not found`);
-        process.exit(1);
-      }
-
-      if (modelsWithId.length === 1) {
-        providerName = modelsWithId[0].provider;
-      } else {
-        // Multiple providers have this model ID - prompt user
-        providerName = await Select.prompt({
-          message: `Multiple providers have model "${parsed.modelId}". Select one:`,
-          options: modelsWithId.map((m) => ({ value: m.provider, name: m.provider })),
-        });
-      }
-    }
-
-    modelId = parsed.modelId;
+    // Only one provided: error
+    console.error("Error: Both --provider and --model are required");
+    console.error("Usage: orchid model remove --model <model-id> --provider <provider>");
+    console.error("   or: orchid model remove    (for interactive mode)");
+    process.exit(1);
   }
 
   try {
@@ -228,7 +175,7 @@ export async function modelListAction(options: {
       console.log(`No models configured for provider "${options.provider}".`);
     } else {
       console.log("No models configured.");
-      console.log('Use "orchid model add <provider>/<model-id>" to add a model.');
+      console.log('Use "orchid model add --model <model-id> --provider <provider>" to add a model.');
     }
     return;
   }
@@ -251,8 +198,8 @@ export async function modelListAction(options: {
  */
 export const modelAddCommand: any = new Command()
   .description("Add a new model")
-  .arguments("<model-ref:string>")
-  .option("--provider <provider:string>", "Provider name (optional if included in model reference)")
+  .option("-m, --model <model:string>", "Model ID")
+  .option("-p, --provider <provider:string>", "Provider name")
   .action(modelAddAction);
 
 /**
@@ -260,8 +207,8 @@ export const modelAddCommand: any = new Command()
  */
 export const modelRemoveCommand: any = new Command()
   .description("Remove a model")
-  .arguments("[model-ref:string]")
-  .option("--provider <provider:string>", "Provider name (optional if included in model reference)")
+  .option("-m, --model <model:string>", "Model ID")
+  .option("-p, --provider <provider:string>", "Provider name")
   .option("-f, --force", "Force removal without confirmation")
   .action(modelRemoveAction);
 
@@ -270,7 +217,7 @@ export const modelRemoveCommand: any = new Command()
  */
 export const modelListCommand: any = new Command()
   .description("List all configured models")
-  .option("--provider <provider:string>", "Filter by provider name")
+  .option("-p, --provider <provider:string>", "Filter by provider name")
   .action(modelListAction);
 
 /**
