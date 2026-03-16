@@ -1,6 +1,7 @@
 import { Command } from "@cliffy/command";
 import { Input } from "@cliffy/prompt/input";
 import { Secret } from "@cliffy/prompt/secret";
+import { Select } from "@cliffy/prompt/select";
 import { Table } from "@cliffy/table";
 import { createModelRepository } from "../../agent-framework/models/model-repository.js";
 import type { Provider } from "../../agent-framework/models/types.js";
@@ -105,23 +106,46 @@ export async function providerAddAction(
  */
 export async function providerRemoveAction(
   options: { force?: boolean },
-  providerName: string
+  providerName?: string
 ): Promise<void> {
   const repo = createModelRepository();
 
+  let name: string;
+
+  if (!providerName) {
+    // Interactive mode - show list of all providers
+    const existingProviders = repo.getAllProviders();
+
+    if (existingProviders.length === 0) {
+      console.error("Error: No providers configured.");
+      console.error('Use "orchid provider add <name>" to add a provider.');
+      process.exit(1);
+    }
+
+    name = await Select.prompt({
+      message: "Select a provider to remove:",
+      options: existingProviders.map((p) => ({
+        value: p.name,
+        name: `${p.name} (${p.auth.url})`,
+      })),
+    });
+  } else {
+    name = providerName;
+  }
+
   // Check if provider exists
   const existingProviders = repo.getAllProviders();
-  if (!existingProviders.some((p) => p.name === providerName)) {
-    console.error(`Error: Provider "${providerName}" not found`);
+  if (!existingProviders.some((p) => p.name === name)) {
+    console.error(`Error: Provider "${name}" not found`);
     process.exit(1);
   }
 
   try {
-    const removed = repo.removeProvider(providerName);
+    const removed = repo.removeProvider(name);
     if (removed) {
-      console.log(`Successfully removed provider "${providerName}"`);
+      console.log(`Successfully removed provider "${name}"`);
     } else {
-      console.error(`Error: Provider "${providerName}" not found`);
+      console.error(`Error: Provider "${name}" not found`);
       process.exit(1);
     }
   } catch (error) {
@@ -177,7 +201,7 @@ export const providerAddCommand: any = new Command()
  */
 export const providerRemoveCommand: any = new Command()
   .description("Remove a provider")
-  .arguments("<provider-name:string>")
+  .arguments("[provider-name:string]")
   .option("-f, --force", "Force removal without confirmation (not yet implemented)")
   .action(providerRemoveAction);
 

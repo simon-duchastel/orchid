@@ -15,6 +15,10 @@ const { mockSecretPrompt } = vi.hoisted(() => ({
   mockSecretPrompt: vi.fn(),
 }));
 
+const { mockSelectPrompt } = vi.hoisted(() => ({
+  mockSelectPrompt: vi.fn(),
+}));
+
 vi.mock("../../agent-framework/models/model-repository.js", () => ({
   createModelRepository: vi.fn(() => ({
     getAllProviders: mockGetAllProviders,
@@ -32,6 +36,12 @@ vi.mock("@cliffy/prompt/input", () => ({
 vi.mock("@cliffy/prompt/secret", () => ({
   Secret: {
     prompt: mockSecretPrompt,
+  },
+}));
+
+vi.mock("@cliffy/prompt/select", () => ({
+  Select: {
+    prompt: mockSelectPrompt,
   },
 }));
 
@@ -178,6 +188,36 @@ describe('provider add command', () => {
 describe('provider remove command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('should remove provider interactively when no argument provided', async () => {
+    mockGetAllProviders.mockReturnValue([
+      { name: 'anthropic', auth: { url: 'https://api.anthropic.com' } },
+      { name: 'openai', auth: { url: 'https://api.openai.com' } },
+    ]);
+    mockSelectPrompt.mockResolvedValue('anthropic');
+    mockRemoveProvider.mockReturnValue(true);
+
+    await providerRemoveAction({}, undefined);
+
+    expect(mockSelectPrompt).toHaveBeenCalledWith({
+      message: 'Select a provider to remove:',
+      options: [
+        { value: 'anthropic', name: 'anthropic (https://api.anthropic.com)' },
+        { value: 'openai', name: 'openai (https://api.openai.com)' },
+      ],
+    });
+    expect(mockRemoveProvider).toHaveBeenCalledWith('anthropic');
+    expect(mockConsoleLog).toHaveBeenCalledWith('Successfully removed provider "anthropic"');
+  });
+
+  it('should exit with error when no providers configured in interactive mode', async () => {
+    mockGetAllProviders.mockReturnValue([]);
+
+    await expect(providerRemoveAction({}, undefined)).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: No providers configured.');
+    expect(mockRemoveProvider).not.toHaveBeenCalled();
   });
 
   it('should remove provider successfully', async () => {
