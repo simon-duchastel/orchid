@@ -11,6 +11,9 @@ dist/
 .orchid/
 .swarm/
 
+# Build artifacts
+bin/
+
 # IDE
 .vscode/
 .idea/
