@@ -156,6 +156,32 @@ describe('model remove command', () => {
     ]);
   });
 
+  it('should remove model interactively when no argument provided', async () => {
+    mockSelectPrompt.mockResolvedValue('anthropic/claude-3-opus');
+    mockRemoveModel.mockReturnValue(true);
+
+    await modelRemoveAction({}, undefined);
+
+    expect(mockSelectPrompt).toHaveBeenCalledWith({
+      message: 'Select a model to remove:',
+      options: [
+        { value: 'anthropic/claude-3-opus', name: 'anthropic/claude-3-opus' },
+        { value: 'openai/gpt-4', name: 'openai/gpt-4' },
+      ],
+    });
+    expect(mockRemoveModel).toHaveBeenCalledWith('anthropic', 'claude-3-opus');
+    expect(mockConsoleLog).toHaveBeenCalledWith('Successfully removed model "anthropic/claude-3-opus"');
+  });
+
+  it('should exit with error when no models configured in interactive mode', async () => {
+    mockGetAllModels.mockReturnValue([]);
+
+    await expect(modelRemoveAction({}, undefined)).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith('Error: No models configured.');
+    expect(mockRemoveModel).not.toHaveBeenCalled();
+  });
+
   it('should remove model with provider in reference', async () => {
     mockRemoveModel.mockReturnValue(true);
 

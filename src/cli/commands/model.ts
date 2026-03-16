@@ -122,46 +122,76 @@ export async function modelAddAction(
  */
 export async function modelRemoveAction(
   options: { provider?: string; force?: boolean },
-  modelRef: string
+  modelRef?: string
 ): Promise<void> {
   const repo = createModelRepository();
 
-  // Parse the model reference
-  const parsed = parseModelRef(modelRef);
-  if (!parsed) {
-    console.error(`Error: Invalid model reference format: "${modelRef}"`);
-    console.error('Use format: "provider/model-id" or provide --provider flag');
-    process.exit(1);
-  }
-
-  // Get provider from reference or flag or prompt
   let providerName: string;
-  if (parsed.provider) {
-    providerName = parsed.provider;
-  } else if (options.provider) {
-    providerName = options.provider;
-  } else {
-    // For removal, we need to find which providers have this model
-    const existingModels = repo.getAllModels();
-    const modelsWithId = existingModels.filter((m) => m.modelId === parsed.modelId);
+  let modelId: string;
 
-    if (modelsWithId.length === 0) {
-      console.error(`Error: Model "${modelRef}" not found`);
+  if (!modelRef) {
+    // Interactive mode - show list of all models
+    const existingModels = repo.getAllModels();
+
+    if (existingModels.length === 0) {
+      console.error("Error: No models configured.");
+      console.error('Use "orchid model add <provider>/<model-id>" to add a model.');
       process.exit(1);
     }
 
-    if (modelsWithId.length === 1) {
-      providerName = modelsWithId[0].provider;
-    } else {
-      // Multiple providers have this model ID - prompt user
-      providerName = await Select.prompt({
-        message: `Multiple providers have model "${parsed.modelId}". Select one:`,
-        options: modelsWithId.map((m) => ({ value: m.provider, name: m.provider })),
-      });
-    }
-  }
+    const selectedModel = await Select.prompt({
+      message: "Select a model to remove:",
+      options: existingModels.map((m) => ({
+        value: `${m.provider}/${m.modelId}`,
+        name: `${m.provider}/${m.modelId}`,
+      })),
+    });
 
-  const modelId = parsed.modelId;
+    const parsed = parseModelRef(selectedModel);
+    if (!parsed) {
+      console.error(`Error: Invalid model selection: "${selectedModel}"`);
+      process.exit(1);
+    }
+
+    providerName = parsed.provider!;
+    modelId = parsed.modelId;
+  } else {
+    // Parse the model reference
+    const parsed = parseModelRef(modelRef);
+    if (!parsed) {
+      console.error(`Error: Invalid model reference format: "${modelRef}"`);
+      console.error('Use format: "provider/model-id" or provide --provider flag');
+      process.exit(1);
+    }
+
+    // Get provider from reference or flag or prompt
+    if (parsed.provider) {
+      providerName = parsed.provider;
+    } else if (options.provider) {
+      providerName = options.provider;
+    } else {
+      // For removal, we need to find which providers have this model
+      const existingModels = repo.getAllModels();
+      const modelsWithId = existingModels.filter((m) => m.modelId === parsed.modelId);
+
+      if (modelsWithId.length === 0) {
+        console.error(`Error: Model "${modelRef}" not found`);
+        process.exit(1);
+      }
+
+      if (modelsWithId.length === 1) {
+        providerName = modelsWithId[0].provider;
+      } else {
+        // Multiple providers have this model ID - prompt user
+        providerName = await Select.prompt({
+          message: `Multiple providers have model "${parsed.modelId}". Select one:`,
+          options: modelsWithId.map((m) => ({ value: m.provider, name: m.provider })),
+        });
+      }
+    }
+
+    modelId = parsed.modelId;
+  }
 
   try {
     const removed = repo.removeModel(providerName, modelId);
@@ -230,7 +260,7 @@ export const modelAddCommand: any = new Command()
  */
 export const modelRemoveCommand: any = new Command()
   .description("Remove a model")
-  .arguments("<model-ref:string>")
+  .arguments("[model-ref:string]")
   .option("--provider <provider:string>", "Provider name (optional if included in model reference)")
   .option("-f, --force", "Force removal without confirmation")
   .action(modelRemoveAction);
