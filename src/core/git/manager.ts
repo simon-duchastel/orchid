@@ -6,9 +6,7 @@
  */
 
 import { join } from "node:path";
-
-// TODO: Import and configure simple-git
-// import simpleGit, { SimpleGit } from 'simple-git';
+import simpleGit from "simple-git";
 
 /**
  * Git configuration interface for dependency injection
@@ -23,10 +21,8 @@ export interface GitOperations {
  */
 export class ProductionGitOperations implements GitOperations {
   async clone(repoUrl: string, targetDir: string): Promise<void> {
-    // TODO: Implement git clone using simple-git
-    // const git = simpleGit();
-    // await git.clone(repoUrl, targetDir);
-    throw new Error("Git clone operation not yet implemented");
+    const git = simpleGit();
+    await git.clone(repoUrl, targetDir);
   }
 
   validateRepoUrl(url: string): boolean {
