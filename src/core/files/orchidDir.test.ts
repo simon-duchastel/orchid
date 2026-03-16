@@ -42,7 +42,7 @@ import { execSync } from 'child_process';
 vi.mock('./paths', () => ({
   getOrchidDir: () => '/tmp/test-orchid/.orchid',
   getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
-  getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
+  getMainRepoDir: () => '/tmp/test-orchid/main',
   getWorktreesDir: () => '/tmp/test-orchid/worktrees',
 }));
 

@@ -50,7 +50,7 @@ describe('paths.ts', () => {
 
     it('should generate correct main repo directory path', () => {
       const mainRepoDir = getMainRepoDir(() => '/test/directory');
-      expect(mainRepoDir).toBe('/test/directory/.orchid/main');
+      expect(mainRepoDir).toBe('/test/directory/main');
     });
 
     it('should generate correct worktrees directory path', () => {
@@ -75,7 +75,7 @@ describe('paths.ts', () => {
       expect(mainRepoDir1).toBe(mainRepoDir2);
       expect(worktreesDir1).toBe(worktreesDir2);
       expect(orchidDir1).toBe('/consistent/project/directory/.orchid');
-      expect(mainRepoDir1).toBe('/consistent/project/directory/.orchid/main');
+      expect(mainRepoDir1).toBe('/consistent/project/directory/main');
       expect(worktreesDir1).toBe('/consistent/project/directory/worktrees');
     });
   });

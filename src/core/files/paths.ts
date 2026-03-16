@@ -32,7 +32,7 @@ export function getErrorLogFile(cwdProvider?: () => string): string {
  * Path to the main repository clone
  */
 export function getMainRepoDir(cwdProvider?: () => string): string {
-  return join(getOrchidDir(cwdProvider), 'main');
+  return join(resolve(cwdProvider ? cwdProvider() : process.cwd()), 'main');
 }
 
 /**
