@@ -122,7 +122,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   const outFd = openSync(logFile, "a");
   const errFd = openSync(errorLogFile, "a");
 
-  // Write timestamp to error log
+  // Write timestamp to logs
   const timestamp = new Date().toISOString();
   writeSync(errFd, `[${timestamp}] Starting orchid daemon\n`);
 
