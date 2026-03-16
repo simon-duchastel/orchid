@@ -112,7 +112,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   }
 
   // Find the daemon script
-  // In development, it's at src/cliMain.ts (run via tsx)
+  // In development, it's at src/cliMain.ts (run via bun)
   // In production, it's at dist/cliMain.js
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const daemonScript = join(__dirname, "..", "cliMain.js");
@@ -126,15 +126,13 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     let child;
 
     if (isDev) {
-      // Development mode - use tsx
       const devDaemonScript = join(__dirname, "..", "cliMain.ts");
-      child = spawn("npx", ["tsx", devDaemonScript], {
+      child = spawn("bun", [devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
       });
     } else {
-      // Production mode - run the compiled JS
-      child = spawn("node", [daemonScript], {
+      child = spawn("bun", [daemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
       });
