@@ -17,10 +17,11 @@ vi.mock('node:fs', () => ({
   openSync: vi.fn(),
   closeSync: vi.fn(),
   unlinkSync: vi.fn(),
+  writeSync: vi.fn(),
 }));
 
 // Import mocked functions
-import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync, writeSync } from 'node:fs';
 
 // Mock orchid-lifecycle module
 vi.mock('./index.js', () => ({
@@ -52,6 +53,7 @@ describe('process.ts - Updated Logic', () => {
     vi.mocked(rmSync).mockImplementation(() => {});
     vi.mocked(openSync).mockReturnValue(1);
     vi.mocked(closeSync).mockImplementation(() => {});
+    vi.mocked(writeSync).mockImplementation(() => 0);
   });
 
   afterEach(() => {
