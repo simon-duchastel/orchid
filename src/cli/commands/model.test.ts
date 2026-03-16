@@ -53,10 +53,10 @@ describe('model add command', () => {
     mockGetAllModels.mockReturnValue([]);
   });
 
-  it('should add model non-interactively with provider in reference', async () => {
+  it('should add model with both --provider and --model flags', async () => {
     mockAddModel.mockImplementation(() => {});
 
-    await modelAddAction({}, 'anthropic/claude-3-opus');
+    await modelAddAction({ provider: 'anthropic', model: 'claude-3-opus' });
 
     expect(mockAddModel).toHaveBeenCalledWith({
       provider: 'anthropic',
@@ -65,38 +65,7 @@ describe('model add command', () => {
     expect(mockConsoleLog).toHaveBeenCalledWith('Successfully added model "anthropic/claude-3-opus"');
   });
 
-  it('should add model with --provider flag', async () => {
-    mockAddModel.mockImplementation(() => {});
-
-    await modelAddAction({ provider: 'openai' }, 'gpt-4');
-
-    expect(mockAddModel).toHaveBeenCalledWith({
-      provider: 'openai',
-      modelId: 'gpt-4',
-    });
-    expect(mockConsoleLog).toHaveBeenCalledWith('Successfully added model "openai/gpt-4"');
-  });
-
-  it('should prompt for provider interactively when not provided', async () => {
-    mockSelectPrompt.mockResolvedValue('anthropic');
-    mockAddModel.mockImplementation(() => {});
-
-    await modelAddAction({}, 'claude-3-opus');
-
-    expect(mockSelectPrompt).toHaveBeenCalledWith({
-      message: 'Select a provider to add the model:',
-      options: [
-        { value: 'anthropic', name: 'anthropic' },
-        { value: 'openai', name: 'openai' },
-      ],
-    });
-    expect(mockAddModel).toHaveBeenCalledWith({
-      provider: 'anthropic',
-      modelId: 'claude-3-opus',
-    });
-  });
-
-  it('should enter interactive mode when no model-ref provided', async () => {
+  it('should enter interactive mode when neither flag provided', async () => {
     mockSelectPrompt.mockResolvedValue('anthropic');
     mockInputPrompt.mockResolvedValue('claude-3-opus');
     mockAddModel.mockImplementation(() => {});
@@ -121,33 +90,25 @@ describe('model add command', () => {
     expect(mockConsoleLog).toHaveBeenCalledWith('Successfully added model "anthropic/claude-3-opus"');
   });
 
-  it('should use --provider flag in interactive mode when no model-ref provided', async () => {
-    mockInputPrompt.mockResolvedValue('gpt-4');
-    mockAddModel.mockImplementation(() => {});
+  it('should exit with error when only --model provided', async () => {
+    await expect(modelAddAction({ model: 'claude-3-opus' })).rejects.toThrow('process.exit called with code 1');
 
-    await modelAddAction({ provider: 'openai' });
-
-    expect(mockSelectPrompt).not.toHaveBeenCalled();
-    expect(mockInputPrompt).toHaveBeenCalledWith({
-      message: 'Enter the model ID:',
-      validate: expect.any(Function),
-    });
-    expect(mockAddModel).toHaveBeenCalledWith({
-      provider: 'openai',
-      modelId: 'gpt-4',
-    });
-  });
-
-  it('should exit with error if no providers configured', async () => {
-    mockGetAllProviders.mockReturnValue([]);
-
-    await expect(modelAddAction({}, 'some-model')).rejects.toThrow('process.exit called with code 1');
-
-    expect(mockConsoleError).toHaveBeenCalledWith("Error: No providers configured. Add a provider first with 'orchid provider add <name>'");
+    expect(mockConsoleError).toHaveBeenCalledWith("Error: Both --provider and --model are required");
+    expect(mockConsoleError).toHaveBeenCalledWith("Usage: orchid model add --model <model-id> --provider <provider>");
+    expect(mockConsoleError).toHaveBeenCalledWith("   or: orchid model add    (for interactive mode)");
     expect(mockAddModel).not.toHaveBeenCalled();
   });
 
-  it('should exit with error if no providers configured in interactive mode', async () => {
+  it('should exit with error when only --provider provided', async () => {
+    await expect(modelAddAction({ provider: 'openai' })).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith("Error: Both --provider and --model are required");
+    expect(mockConsoleError).toHaveBeenCalledWith("Usage: orchid model add --model <model-id> --provider <provider>");
+    expect(mockConsoleError).toHaveBeenCalledWith("   or: orchid model add    (for interactive mode)");
+    expect(mockAddModel).not.toHaveBeenCalled();
+  });
+
+  it('should exit with error if no providers configured', async () => {
     mockGetAllProviders.mockReturnValue([]);
 
     await expect(modelAddAction({})).rejects.toThrow('process.exit called with code 1');
@@ -159,16 +120,7 @@ describe('model add command', () => {
   it('should exit with error if provider does not exist', async () => {
     mockAddModel.mockImplementation(() => {});
 
-    await expect(modelAddAction({}, 'nonexistent/model-id')).rejects.toThrow('process.exit called with code 1');
-
-    expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider "nonexistent" not found');
-    expect(mockAddModel).not.toHaveBeenCalled();
-  });
-
-  it('should exit with error if provider from flag does not exist in interactive mode', async () => {
-    mockInputPrompt.mockResolvedValue('some-model');
-
-    await expect(modelAddAction({ provider: 'nonexistent' })).rejects.toThrow('process.exit called with code 1');
+    await expect(modelAddAction({ provider: 'nonexistent', model: 'model-id' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Provider "nonexistent" not found');
     expect(mockAddModel).not.toHaveBeenCalled();
@@ -179,7 +131,7 @@ describe('model add command', () => {
       { provider: 'anthropic', modelId: 'claude-3-opus' },
     ]);
 
-    await expect(modelAddAction({}, 'anthropic/claude-3-opus')).rejects.toThrow('process.exit called with code 1');
+    await expect(modelAddAction({ provider: 'anthropic', model: 'claude-3-opus' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Model "anthropic/claude-3-opus" already exists');
     expect(mockAddModel).not.toHaveBeenCalled();
@@ -198,19 +150,12 @@ describe('model add command', () => {
     expect(mockAddModel).not.toHaveBeenCalled();
   });
 
-  it('should exit with error for invalid model reference format', async () => {
-    await expect(modelAddAction({}, 'too/many/slashes')).rejects.toThrow('process.exit called with code 1');
-
-    expect(mockConsoleError).toHaveBeenCalledWith('Error: Invalid model reference format: "too/many/slashes"');
-    expect(mockAddModel).not.toHaveBeenCalled();
-  });
-
   it('should handle errors from model repository', async () => {
     mockAddModel.mockImplementation(() => {
       throw new Error('Database error');
     });
 
-    await expect(modelAddAction({}, 'anthropic/claude-3')).rejects.toThrow('process.exit called with code 1');
+    await expect(modelAddAction({ provider: 'anthropic', model: 'claude-3' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Database error');
   });
@@ -241,78 +186,61 @@ describe('model remove command', () => {
     ]);
   });
 
-  it('should remove model with provider in reference', async () => {
+  it('should remove model with both --provider and --model flags', async () => {
     mockRemoveModel.mockReturnValue(true);
 
-    await modelRemoveAction({}, 'anthropic/claude-3-opus');
+    await modelRemoveAction({ provider: 'anthropic', model: 'claude-3-opus' });
 
     expect(mockRemoveModel).toHaveBeenCalledWith('anthropic', 'claude-3-opus');
     expect(mockConsoleLog).toHaveBeenCalledWith('Successfully removed model "anthropic/claude-3-opus"');
   });
 
-  it('should remove model with --provider flag', async () => {
+  it('should enter interactive mode when neither flag provided', async () => {
+    mockSelectPrompt.mockResolvedValue('anthropic');
+    mockInputPrompt.mockResolvedValue('claude-3-opus');
     mockRemoveModel.mockReturnValue(true);
 
-    await modelRemoveAction({ provider: 'openai' }, 'gpt-4');
-
-    expect(mockRemoveModel).toHaveBeenCalledWith('openai', 'gpt-4');
-    expect(mockConsoleLog).toHaveBeenCalledWith('Successfully removed model "openai/gpt-4"');
-  });
-
-  it('should remove model when only one provider has it', async () => {
-    mockRemoveModel.mockReturnValue(true);
-
-    await modelRemoveAction({}, 'claude-3-opus');
-
-    expect(mockRemoveModel).toHaveBeenCalledWith('anthropic', 'claude-3-opus');
-    expect(mockConsoleLog).toHaveBeenCalledWith('Successfully removed model "anthropic/claude-3-opus"');
-  });
-
-  it('should prompt for provider when multiple providers have same model ID', async () => {
-    mockGetAllModels.mockReturnValue([
-      { provider: 'anthropic', modelId: 'gpt-4' },
-      { provider: 'openai', modelId: 'gpt-4' },
-    ]);
-    mockSelectPrompt.mockResolvedValue('openai');
-    mockRemoveModel.mockReturnValue(true);
-
-    await modelRemoveAction({}, 'gpt-4');
+    await modelRemoveAction({});
 
     expect(mockSelectPrompt).toHaveBeenCalledWith({
-      message: 'Multiple providers have model "gpt-4". Select one:',
+      message: 'Select a provider to remove the model:',
       options: [
         { value: 'anthropic', name: 'anthropic' },
         { value: 'openai', name: 'openai' },
       ],
     });
-    expect(mockRemoveModel).toHaveBeenCalledWith('openai', 'gpt-4');
+    expect(mockInputPrompt).toHaveBeenCalledWith({
+      message: 'Enter the model ID:',
+      validate: expect.any(Function),
+    });
+    expect(mockRemoveModel).toHaveBeenCalledWith('anthropic', 'claude-3-opus');
   });
 
-  it('should exit with error if model not found', async () => {
-    mockGetAllModels.mockReturnValue([
-      { provider: 'anthropic', modelId: 'claude-3-opus' },
-    ]);
+  it('should exit with error when only --model provided', async () => {
+    await expect(modelRemoveAction({ model: 'claude-3-opus' })).rejects.toThrow('process.exit called with code 1');
 
-    await expect(modelRemoveAction({}, 'nonexistent-model')).rejects.toThrow('process.exit called with code 1');
+    expect(mockConsoleError).toHaveBeenCalledWith("Error: Both --provider and --model are required");
+    expect(mockConsoleError).toHaveBeenCalledWith("Usage: orchid model remove --model <model-id> --provider <provider>");
+    expect(mockConsoleError).toHaveBeenCalledWith("   or: orchid model remove    (for interactive mode)");
+    expect(mockRemoveModel).not.toHaveBeenCalled();
+  });
 
-    expect(mockConsoleError).toHaveBeenCalledWith('Error: Model "nonexistent-model" not found');
+  it('should exit with error when only --provider provided', async () => {
+    await expect(modelRemoveAction({ provider: 'openai' })).rejects.toThrow('process.exit called with code 1');
+
+    expect(mockConsoleError).toHaveBeenCalledWith("Error: Both --provider and --model are required");
+    expect(mockConsoleError).toHaveBeenCalledWith("Usage: orchid model remove --model <model-id> --provider <provider>");
+    expect(mockConsoleError).toHaveBeenCalledWith("   or: orchid model remove    (for interactive mode)");
     expect(mockRemoveModel).not.toHaveBeenCalled();
   });
 
   it('should exit with error if model not found with provider', async () => {
     mockRemoveModel.mockReturnValue(false);
 
-    await expect(modelRemoveAction({}, 'anthropic/nonexistent')).rejects.toThrow('process.exit called with code 1');
+    await expect(modelRemoveAction({ provider: 'anthropic', model: 'nonexistent' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockRemoveModel).toHaveBeenCalledWith('anthropic', 'nonexistent');
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Model "anthropic/nonexistent" not found');
-  });
-
-  it('should exit with error for invalid model reference format', async () => {
-    await expect(modelRemoveAction({}, 'too/many/slashes')).rejects.toThrow('process.exit called with code 1');
-
-    expect(mockConsoleError).toHaveBeenCalledWith('Error: Invalid model reference format: "too/many/slashes"');
-    expect(mockRemoveModel).not.toHaveBeenCalled();
   });
 
   it('should handle errors from model repository', async () => {
@@ -320,7 +248,7 @@ describe('model remove command', () => {
       throw new Error('Model assigned to agent');
     });
 
-    await expect(modelRemoveAction({}, 'anthropic/claude-3-opus')).rejects.toThrow('process.exit called with code 1');
+    await expect(modelRemoveAction({ provider: 'anthropic', model: 'claude-3-opus' })).rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleError).toHaveBeenCalledWith('Error: Model assigned to agent');
   });
@@ -337,7 +265,7 @@ describe('model list command', () => {
     await modelListAction({});
 
     expect(mockConsoleLog).toHaveBeenCalledWith('No models configured.');
-    expect(mockConsoleLog).toHaveBeenCalledWith('Use "orchid model add <provider>/<model-id>" to add a model.');
+    expect(mockConsoleLog).toHaveBeenCalledWith('Use "orchid model add --model <model-id> --provider <provider>" to add a model.');
   });
 
   it('should list all models', async () => {
