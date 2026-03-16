@@ -11,24 +11,28 @@ import { tuiCommand } from "./commands/tui.js";
 import { daemonCommand } from "./commands/daemon.js";
 import { setVerboseLogging } from "../core/logging/index.js";
 
-await new Command()
-  .help(flatHelp())
-  .name("orchid")
-  .description("Orchestrate complex background AI tasks")
-  .version("1.0.0")
-  .globalOption("--verbose", "Enable verbose logging")
-  .action(function (options) {
-    if (options.verbose) {
-      setVerboseLogging(true);
-    }
-    this.showHelp();
-  })
-  .command("init", initCommand)
-  .command("up", upCommand)
-  .command("down", downCommand)
-  .command("status", statusCommand)
-  .command("provider", providerCommand)
-  .command("model", modelCommand)
-  .command("tui", tuiCommand)
-  .command("daemon", daemonCommand)
-  .parse();
+async function main() {
+  await new Command()
+    .help(flatHelp())
+    .name("orchid")
+    .description("Orchestrate complex background AI tasks")
+    .version("1.0.0")
+    .globalOption("--verbose", "Enable verbose logging")
+    .action(function (options) {
+      if (options.verbose) {
+        setVerboseLogging(true);
+      }
+      this.showHelp();
+    })
+    .command("init", initCommand)
+    .command("up", upCommand)
+    .command("down", downCommand)
+    .command("status", statusCommand)
+    .command("provider", providerCommand)
+    .command("model", modelCommand)
+    .command("tui", tuiCommand)
+    .command("daemon", daemonCommand)
+    .parse();
+}
+
+main().catch(console.error);
