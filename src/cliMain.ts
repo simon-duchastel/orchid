@@ -5,7 +5,7 @@
  * It is spawned by the CLI's `up` command and stopped by the `down` command.
  */
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { getPidFile, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./core/files/paths.js";
 import { PiSessionAdapter } from "./agent-framework/agents/interface/index.js";
 import { log } from "./core/logging/logger.js";
@@ -71,7 +71,7 @@ export async function startDaemonProcess() {
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("exit", () => shutdown("exit"));
 
-    log.log("[orchid] Daemon ready`);
+    log.log("[orchid] Daemon ready");
 
     // Keep the process alive
     await new Promise(() => {});
