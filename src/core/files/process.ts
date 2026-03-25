@@ -111,12 +111,32 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     mkdirSync(orchidDir, { recursive: true });
   }
 
-  // Find the daemon script
-  // In development, it's at src/cliMain.ts (run via bun)
-  // In production, it's at dist/cliMain.js
-  // In compiled mode, we run the same binary with "daemon" command
+  // Find the daemon script and determine if we're in dev mode
+  // Note: When running from a compiled binary, __dirname points to the virtual filesystem
+  // (/$bunfs/root), so we need to detect this and find the actual source directory
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const daemonScript = join(__dirname, "..", "..", "cliMain.js");
+  const isCompiledBinary = import.meta.url.includes('/$bunfs/');
+  
+  // For compiled binaries, we need the ORCHID_SOURCE_DIR env var set
+  // to know where the orchid source code is located
+  if (isCompiledBinary && !process.env.ORCHID_SOURCE_DIR) {
+    return {
+      success: false,
+      message: "Cannot start daemon from compiled binary without ORCHID_SOURCE_DIR. " +
+        "Please set the environment variable to your orchid source directory:\n\n" +
+        "  ORCHID_SOURCE_DIR=/path/to/orchid orchid up\n\n" +
+        "For example:\n" +
+        "  ORCHID_SOURCE_DIR=/home/bob/orchid orchid up",
+    };
+  }
+  
+  // Use env var for source directory (required for compiled binaries)
+  // For dev/prod, calculate from __dirname - the file is at src/core/files/process.ts
+  // so we go up 3 levels to get to the repo root
+  const orchidSourceDir = process.env.ORCHID_SOURCE_DIR || join(__dirname, "..", "..", "..");
+  
+  const daemonScript = join(orchidSourceDir, "dist", "cliMain.js");
+  const devDaemonScript = join(orchidSourceDir, "src", "cliMain.ts");
   const isDev = !existsSync(daemonScript);
 
   // Open log files
@@ -131,27 +151,35 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   try {
     let child;
 
-    // Check if we're running as a compiled binary (bun --compile output)
-    // Compiled binaries don't have a .js extension in argv[1] and the file doesn't exist as a separate script
-    const isCompiledBinary = !process.argv[1]?.endsWith(".js") && !process.argv[1]?.endsWith(".ts");
+    // Find bun executable (bun might not be in PATH when running directly)
+    const bunPaths = [
+      "/home/bob/.bun/bin/bun",
+      "/usr/local/bin/bun",
+      "/usr/bin/bun",
+    ];
+    const bunPath = bunPaths.find(p => existsSync(p)) || "bun";
 
-    if (isCompiledBinary) {
-      // Running as compiled binary - spawn the same binary with "daemon" command
-      const binaryPath = process.argv[1];
-      child = spawn(binaryPath, ["daemon"], {
+    // Set PI_PACKAGE_DIR for the Pi SDK so it can find its assets
+    // The Pi SDK needs to know where to find package.json and other files
+    const piPackageDir = join(orchidSourceDir, "node_modules", "@mariozechner", "pi-coding-agent");
+
+    if (isDev) {
+      child = spawn(bunPath, [devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
-      });
-    } else if (isDev) {
-      const devDaemonScript = join(__dirname, "..", "..", "cliMain.ts");
-      child = spawn("bun", [devDaemonScript], {
-        detached: true,
-        stdio: ["ignore", outFd, errFd],
+        env: {
+          ...process.env,
+          PI_PACKAGE_DIR: piPackageDir,
+        },
       });
     } else {
-      child = spawn("bun", [daemonScript], {
+      child = spawn(bunPath, [daemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
+        env: {
+          ...process.env,
+          PI_PACKAGE_DIR: piPackageDir,
+        },
       });
     }
 
@@ -159,7 +187,8 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     child.unref();
 
     // Wait a moment for the daemon to start and write its PID
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Note: Pi SDK takes ~1 second to initialize
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Verify it started
     const pid = getRunningPid();

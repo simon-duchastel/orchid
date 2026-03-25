@@ -69,7 +69,8 @@ export async function startDaemonProcess() {
 
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
-    process.on("exit", () => shutdown("exit"));
+    // Note: Don't use process.on("exit") - exit handlers must be synchronous
+    // and shutdown is async. SIGTERM/SIGINT are sufficient for cleanup.
 
     log.log("[orchid] Daemon ready");
 
@@ -105,5 +106,9 @@ const isDirectExecution = import.meta.url === `file://${process.argv[1]}`;
 // 1. We're executed directly (isDirectExecution), AND
 // 2. We're NOT a compiled binary (isCompiledBinary), OR we're explicitly running as daemon
 if (isDirectExecution && !isCompiledBinary) {
-  startDaemonProcess();
+  // Wrap in async IIFE to properly await the daemon process
+  // This ensures the event loop stays alive while the daemon runs
+  (async () => {
+    await startDaemonProcess();
+  })();
 }
