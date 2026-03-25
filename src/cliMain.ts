@@ -95,7 +95,15 @@ export async function startDaemonProcess() {
 // Backward compatibility: also export as main for testing
 export { startDaemonProcess as main };
 
-// Run main if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run main if this file is executed directly as a script (not as a compiled binary)
+// In compiled mode, import.meta.url is file:///$bunfs/root/<name> and process.argv[1] is /$bunfs/root/<name>
+// We should only auto-start the daemon if we're NOT being invoked through the CLI
+const isCompiledBinary = import.meta.url.includes('/$bunfs/');
+const isDirectExecution = import.meta.url === `file://${process.argv[1]}`;
+
+// Only start daemon automatically if:
+// 1. We're executed directly (isDirectExecution), AND
+// 2. We're NOT a compiled binary (isCompiledBinary), OR we're explicitly running as daemon
+if (isDirectExecution && !isCompiledBinary) {
   startDaemonProcess();
 }

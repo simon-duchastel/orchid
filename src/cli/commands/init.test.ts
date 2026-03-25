@@ -67,7 +67,7 @@ describe('init command', () => {
     });
     expect(mockInitializeOrchid).toHaveBeenCalledWith(
       'https://github.com/user/repo.git',
-      { allowNonEmptyDir: false }
+      { allowNonEmptyDir: true }
     );
     expect(mockConsoleLog).toHaveBeenCalledWith('Successfully initialized orchid');
   });
