@@ -5,7 +5,7 @@ import { cwd } from "node:process";
 
 export async function initAction(options: { dangerouslyInitInNonEmptyDir?: true }, repository: string) {
   const currentDir = cwd();
-  const allowNonEmptyDir = options.dangerouslyInitInNonEmptyDir ?? false;
+  let allowNonEmptyDir = options.dangerouslyInitInNonEmptyDir ?? false;
 
   // Check if directory is empty
   if (!allowNonEmptyDir && !isDirectoryEmpty(currentDir)) {
@@ -18,6 +18,9 @@ export async function initAction(options: { dangerouslyInitInNonEmptyDir?: true 
       console.log("Initialization cancelled.");
       process.exit(0);
     }
+
+    // User confirmed, so allow non-empty directory
+    allowNonEmptyDir = true;
   }
 
   const result = await initializeOrchid(repository, { allowNonEmptyDir });

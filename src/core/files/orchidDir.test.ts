@@ -360,6 +360,91 @@ describe('orchidDir.ts - Orchid Initialization', () => {
       // Verify cleanup would be attempted (mkdirSync should have been called for structure creation)
       expect(vi.mocked(mkdirSync)).toHaveBeenCalled();
     });
+
+    it('should clean up stale orchid directories when allowNonEmptyDir is true', async () => {
+      // Track which paths are "checked" and which are "removed"
+      const checkedPaths: string[] = [];
+      const removedPaths: string[] = [];
+      let orchidExists = true;
+      let mainExists = true;
+      let worktreesExists = true;
+
+      // Mock existsSync to simulate stale orchid directories
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        checkedPaths.push(pathStr);
+
+        // Simulate stale directories existing initially
+        if (pathStr.includes('.orchid') && !pathStr.includes('main') && !pathStr.includes('worktrees')) {
+          return orchidExists;
+        }
+        if (pathStr.includes('main') && !pathStr.includes('.orchid') && !pathStr.includes('worktrees')) {
+          return mainExists;
+        }
+        if (pathStr.includes('worktrees')) {
+          return worktreesExists;
+        }
+        return false;
+      });
+
+      // Mock rmSync to track removals and update state
+      vi.mocked(rmSync).mockImplementation((path, options) => {
+        const pathStr = String(path);
+        removedPaths.push(pathStr);
+
+        // Simulate directories being removed
+        if (pathStr.includes('.orchid') && !pathStr.includes('main') && !pathStr.includes('worktrees')) {
+          orchidExists = false;
+        }
+        if (pathStr.includes('main') && !pathStr.includes('.orchid') && !pathStr.includes('worktrees')) {
+          mainExists = false;
+        }
+        if (pathStr.includes('worktrees')) {
+          worktreesExists = false;
+        }
+      });
+
+      vi.mocked(readdirSync).mockReturnValue(['.orchid', 'main'] as any);
+
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', { allowNonEmptyDir: true }, mockGitOps);
+
+      // Should succeed after cleaning up stale directories
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully initialized');
+
+      // Should have removed the stale directories
+      expect(removedPaths.length).toBeGreaterThan(0);
+      const hasRemovedOrchid = removedPaths.some(p => p.includes('.orchid') && !p.includes('main'));
+      const hasRemovedMain = removedPaths.some(p => p.includes('main') && !p.includes('.orchid'));
+      expect(hasRemovedOrchid || hasRemovedMain).toBe(true);
+    });
+
+    it('should report "already initialized" when orchid directories exist and allowNonEmptyDir is false', async () => {
+      // Mock that orchid directories exist (stale from failed init)
+      // The directory appears empty to isDirectoryEmpty (no files), but orchid dirs exist
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        // Return true for orchid dirs and main dir
+        if (pathStr.includes('.orchid') && !pathStr.includes('pid')) {
+          return true;
+        }
+        if (pathStr.includes('main') && !pathStr.includes('.orchid')) {
+          return true;
+        }
+        return false;
+      });
+      // Directory appears empty (no files in cwd)
+      vi.mocked(readdirSync).mockReturnValue([] as any);
+
+      const mockGitOps = new MockGitOperations();
+      // Don't allow non-empty dir, but directory appears empty so it proceeds
+      // Then it checks isOrchidInitialized and finds the directories
+      const result = await initializeOrchid('https://github.com/user/repo.git', { allowNonEmptyDir: false }, mockGitOps);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('already initialized');
+    });
   });
   describe('dyson-swarm integration', () => {
     it('should initialize dyson-swarm if not already initialized', async () => {

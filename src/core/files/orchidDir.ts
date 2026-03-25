@@ -168,19 +168,44 @@ export async function initializeOrchid(
 ): Promise<InitResult> {
   const { allowNonEmptyDir = false } = options;
 
-  // Check if already initialized
-  if (isOrchidInitialized()) {
-    return {
-      success: false,
-      message: "Orchid is already initialized in this directory. Use 'orchid status' to check the current state.",
-    };
-  }
-
   // Check if directory is empty (unless explicitly allowed)
   if (!allowNonEmptyDir && !isDirectoryEmpty(cwd())) {
     return {
       success: false,
       message: "Directory is not empty. Use --dangerously-init-in-non-empty-dir to proceed anyway.",
+    };
+  }
+
+  // If allowing non-empty directory, clean up any existing orchid directories
+  // that might be left over from a failed previous initialization
+  if (allowNonEmptyDir) {
+    const orchidDir = getOrchidDir();
+    const mainRepoDir = getMainRepoDir();
+    const worktreesDir = getWorktreesDir();
+
+    try {
+      if (existsSync(orchidDir)) {
+        rmSync(orchidDir, { recursive: true, force: true });
+      }
+      if (existsSync(mainRepoDir)) {
+        rmSync(mainRepoDir, { recursive: true, force: true });
+      }
+      if (existsSync(worktreesDir)) {
+        rmSync(worktreesDir, { recursive: true, force: true });
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to clean up existing orchid directories: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  // Check if already initialized (after cleanup)
+  if (isOrchidInitialized()) {
+    return {
+      success: false,
+      message: "Orchid is already initialized in this directory. Use 'orchid status' to check the current state.",
     };
   }
 
