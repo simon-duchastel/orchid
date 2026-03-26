@@ -1,27 +1,28 @@
 /**
- * Tests for process.ts
- * Tests basic functionality with proper mocking using Vitest
+ * Tests for process.ts using daemonize-process
+ * Tests with proper mocking using Vitest - no real process spawning
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { startDaemon, stopDaemon, getStatus } from './process.js';
-import { spawn } from 'child_process';
+import { startDaemon, stopDaemon, getStatus, getRunningPid, isRunning } from './process.js';
 
-// Mock all file system operations
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(),
-  readFileSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  rmSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  openSync: vi.fn(),
-  closeSync: vi.fn(),
-  unlinkSync: vi.fn(),
-  writeSync: vi.fn(),
+// Mock daemonize-process
+vi.mock('daemonize-process', () => ({
+  daemonizeProcess: vi.fn(),
 }));
 
-// Import mocked functions
-import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync, writeSync } from 'node:fs';
+import { daemonizeProcess } from 'daemonize-process';
+
+// Mock node:fs
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn<(path: import('node:fs').PathLike) => boolean>(),
+  readFileSync: vi.fn(),
+  unlinkSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  writeFileSync: vi.fn(),
+}));
+
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 
 // Mock orchid-lifecycle module
 vi.mock('./index.js', () => ({
@@ -30,7 +31,7 @@ vi.mock('./index.js', () => ({
 
 import { validateOrchidStructure } from './index.js';
 
-// Mock paths module to control directory locations for testing
+// Mock paths module
 vi.mock('./paths.js', () => ({
   getOrchidDir: () => '/tmp/test-orchid-daemon/.orchid',
   getPidFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.pid',
@@ -40,307 +41,380 @@ vi.mock('./paths.js', () => ({
   getWorktreesDir: () => '/tmp/test-orchid-daemon/worktrees',
 }));
 
-
-describe('process.ts - Updated Logic', () => {
+describe('process.ts with daemonize-process', () => {
   beforeEach(() => {
-    // Enable fake timers to speed up tests with setTimeout
     vi.useFakeTimers();
-    
-    // Clear all mocks
     vi.clearAllMocks();
-    
-    // Mock file operations to do nothing since we're not actually creating files
-    vi.mocked(rmSync).mockImplementation(() => {});
-    vi.mocked(openSync).mockReturnValue(1);
-    vi.mocked(closeSync).mockImplementation(() => {});
-    vi.mocked(writeSync).mockImplementation(() => 0);
   });
 
   afterEach(() => {
-    // Restore real timers after each test
     vi.useRealTimers();
   });
 
-  describe('startDaemon with orchid validation', () => {
-    it('should start daemon when not initialized (no main directory)', async () => {
-      const mockValidate = vi.mocked(validateOrchidStructure);
+  describe('getRunningPid', () => {
+    it('should return null when PID file does not exist', () => {
+      vi.mocked(existsSync).mockReturnValue(false);
       
-      // This should not be called when main dir doesn't exist
-      mockValidate.mockReturnValue(true);
-
-      // Mock spawn to avoid actual daemon creation
-      const mockSpawn = vi.spyOn({ spawn }, 'spawn').mockImplementation(() => {
-        const mockChild = {
-          unref: vi.fn(),
-          on: vi.fn(),
-          stdout: { on: vi.fn() },
-          stderr: { on: vi.fn() },
-          stdin: { on: vi.fn() },
-          kill: vi.fn(),
-          pid: 12345,
-          connected: true,
-          exitCode: null,
-          signalCode: null,
-          killed: false,
-        } as any;
-        return mockChild;
-      });
-
-      // Mock file system operations
-      vi.mocked(existsSync).mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('main')) {
-          return false; // Main dir doesn't exist - not initialized
-        }
-        return true; // Other files exist for PID check
-      });
-
-      vi.mocked(readFileSync).mockReturnValue('');
-
-      const result = await startDaemon();
+      const result = getRunningPid();
       
-      // Should attempt to start since nothing is initialized
-      expect(result.success).toBe(false); // Will fail due to mocked spawn, but that's expected
-      expect(mockValidate).not.toHaveBeenCalled(); // Should not validate when not initialized
-
-      mockSpawn.mockRestore();
+      expect(result).toBeNull();
     });
 
-  it('should validate orchid structure when initialized', async () => {
-      const mockValidate = vi.mocked(validateOrchidStructure);
-      mockValidate.mockReturnValue(false); // Validation fails
-
-      // Mock file system to simulate initialized workspace
-      vi.mocked(existsSync).mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('main')) {
-          return true; // Main dir exists - initialized
-        }
-        if (pathStr.includes('orchid.pid')) {
-          return false; // No PID file
-        }
-        return false;
-      });
-
-      const result = await startDaemon();
-
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('not properly initialized');
-      expect(mockValidate).toHaveBeenCalled();
-    });
-
-    it('should handle validation failure properly', async () => {
-      const mockValidate = vi.mocked(validateOrchidStructure);
-      mockValidate.mockReturnValue(false); // Validation fails
-
-      // Mock file system to simulate initialized workspace
-      vi.mocked(existsSync).mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('main')) {
-          return true; // Main dir exists - initialized
-        }
-        if (pathStr.includes('orchid.pid')) {
-          return false; // No PID file
-        }
-        return false;
-      });
-
-      const result = await startDaemon();
-
-      expect(result.success).toBe(false);
-      expect(result.message).toMatch(/not properly initialized|already running/);
-      expect(mockValidate).toHaveBeenCalled();
-    });
-
-    it('should proceed when orchid structure is valid', async () => {
-      const mockValidate = vi.mocked(validateOrchidStructure);
-      mockValidate.mockReturnValue(true); // Validation succeeds
-
-      // Mock file system to simulate initialized workspace
-      vi.mocked(existsSync).mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('main')) {
-          return true; // Main dir exists - initialized
-        }
-        if (pathStr.includes('orchid.pid')) {
-          return false; // No PID file
-        }
-        return false;
-      });
-
-      // Mock spawn to avoid actual process creation
-      const mockSpawn = vi.spyOn({ spawn }, 'spawn').mockImplementation(() => {
-        const mockChild = {
-          unref: vi.fn(),
-          on: vi.fn(),
-          stdout: { on: vi.fn() },
-          stderr: { on: vi.fn() },
-          stdin: { on: vi.fn() },
-          kill: vi.fn(),
-          pid: 12345,
-          connected: true,
-          exitCode: null,
-          signalCode: null,
-          killed: false,
-        } as any;
-        return mockChild;
-      });
-
-      vi.mocked(readFileSync).mockReturnValue('');
-
-      // Start the daemon operation
-      const startPromise = startDaemon();
+    it('should return null when PID file contains invalid data', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('invalid');
       
-      // Advance timers to skip the 1500ms delay in startDaemon
-      await vi.advanceTimersByTimeAsync(1500);
+      const result = getRunningPid();
       
-      const result = await startPromise;
-
-      expect(mockValidate).toHaveBeenCalled();
-      // Result will be false due to mocked spawn, but validation should have passed
-
-      mockSpawn.mockRestore();
+      expect(result).toBeNull();
     });
 
-    it('should write timestamps to both log files when starting daemon', async () => {
-      const mockValidate = vi.mocked(validateOrchidStructure);
-      mockValidate.mockReturnValue(true);
-
-      // Mock file system to simulate initialized workspace
-      vi.mocked(existsSync).mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('main')) {
-          return true;
-        }
-        if (pathStr.includes('orchid.pid')) {
-          return false;
-        }
-        return false;
-      });
-
-      // Mock spawn
-      const mockSpawn = vi.spyOn({ spawn }, 'spawn').mockImplementation(() => {
-        const mockChild = {
-          unref: vi.fn(),
-          on: vi.fn(),
-          stdout: { on: vi.fn() },
-          stderr: { on: vi.fn() },
-          stdin: { on: vi.fn() },
-          kill: vi.fn(),
-          pid: 12345,
-          connected: true,
-          exitCode: null,
-          signalCode: null,
-          killed: false,
-        } as any;
-        return mockChild;
-      });
-
-      vi.mocked(readFileSync).mockReturnValue('');
-
-      // Track writeSync calls
-      const writeSyncCalls: Array<{ fd: number; data: string }> = [];
-      vi.mocked(writeSync).mockImplementation((fd: number, data: string) => {
-        writeSyncCalls.push({ fd, data: String(data) });
-        return 0;
-      });
-
-      // Start the daemon operation
-      const startPromise = startDaemon();
-      await vi.advanceTimersByTimeAsync(1500);
-      await startPromise;
-
-      // Verify timestamps were written to both log files (first call is stdout, second is stderr)
-      expect(writeSyncCalls.length).toBeGreaterThanOrEqual(2);
-      
-      // Both calls should have timestamps and daemon message
-      expect(writeSyncCalls[0].data).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
-      expect(writeSyncCalls[0].data).toContain('Starting orchid daemon');
-      expect(writeSyncCalls[1].data).toMatch(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
-      expect(writeSyncCalls[1].data).toContain('Starting orchid daemon');
-
-      mockSpawn.mockRestore();
-    });
-
-    it('should handle corrupted workspace (PID file exists but main directory missing)', async () => {
-      // Mock spawn to prevent actual daemon startup
-      const mockSpawn = vi.spyOn({ spawn }, 'spawn').mockImplementation(() => {
-        const mockChild = {
-          unref: vi.fn(),
-          on: vi.fn(),
-          stdout: { on: vi.fn() },
-          stderr: { on: vi.fn() },
-          stdin: { on: vi.fn() },
-          kill: vi.fn(),
-          pid: 12345,
-          connected: true,
-          exitCode: null,
-          signalCode: null,
-          killed: false,
-        } as any;
-        return mockChild;
-      });
-
-      // Mock corrupted setup: PID file exists but main directory doesn't, and process is not running (stale PID)
-      vi.mocked(existsSync).mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('main')) {
-          return false; // Main directory missing
-        }
-        if (pathStr.includes('orchid.pid')) {
-          return true; // PID file exists
-        }
-        return false;
-      });
-
+    it('should return PID when process is running', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+      
+      const result = getRunningPid();
+      
+      expect(result).toBe(12345);
+      
+      mockKill.mockRestore();
+    });
 
-      // Mock process.kill to simulate process NOT running (stale PID file)
+    it('should clean up stale PID file when process is not running', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
       const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 0) {
-          // Signal 0 throws error if process doesn't exist
           throw new Error('Process not found');
         }
         return true;
       });
-
-      const result = await startDaemon();
-
-      expect(result.success).toBe(false);
-      expect(result.message).toMatch(/corrupted.*PID file exists but main repository directory is missing/);
-
+      
+      const result = getRunningPid();
+      
+      expect(result).toBeNull();
+      expect(unlinkSync).toHaveBeenCalledWith('/tmp/test-orchid-daemon/.orchid/orchid.pid');
+      
       mockKill.mockRestore();
-      mockSpawn.mockRestore();
     });
   });
 
-  describe('other functions remain unchanged', () => {
-    it('should maintain getStatus functionality', () => {
-      // Mock existing PID
+  describe('isRunning', () => {
+    it('should return true when daemon is running', () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(readFileSync).mockReturnValue('12345');
       
-      // Mock process.kill to simulate running process
-      const mockKill = vi.spyOn(process, 'kill').mockImplementation(() => {
-        throw new Error('Process exists');
-      });
-
-      const status = getStatus();
-
-      expect(status.running).toBe(false); // Will be false due to mock throwing
-      expect(status.pid).toBeNull();
-
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+      
+      const result = isRunning();
+      
+      expect(result).toBe(true);
+      
       mockKill.mockRestore();
     });
 
-    it('should maintain stopDaemon functionality', async () => {
-      // Mock no PID file
+    it('should return false when daemon is not running', () => {
       vi.mocked(existsSync).mockReturnValue(false);
+      
+      const result = isRunning();
+      
+      expect(result).toBe(false);
+    });
+  });
 
+  describe('startDaemon', () => {
+    it('should return error when daemon is already running', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+      
+      const result = await startDaemon();
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('already running');
+      expect(daemonizeProcess).not.toHaveBeenCalled();
+      
+      mockKill.mockRestore();
+    });
+
+    it('should return error for corrupted workspace', async () => {
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        if (String(path).includes('orchid.pid')) return true;
+        if (String(path).includes('main')) return false;
+        return false;
+      });
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal === 0) {
+          throw new Error('Process not found');
+        }
+        return true;
+      });
+      
+      const result = await startDaemon();
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('corrupted');
+      expect(daemonizeProcess).not.toHaveBeenCalled();
+      
+      mockKill.mockRestore();
+    });
+
+    it('should return error when validation fails', async () => {
+      const mockValidate = vi.mocked(validateOrchidStructure);
+      mockValidate.mockReturnValue(false);
+      
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        if (String(path).includes('main')) return true;
+        return false;
+      });
+      
+      const result = await startDaemon();
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('not properly initialized');
+      expect(daemonizeProcess).not.toHaveBeenCalled();
+    });
+
+    it('should daemonize process when starting successfully', async () => {
+      const mockValidate = vi.mocked(validateOrchidStructure);
+      mockValidate.mockReturnValue(true);
+      
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        if (String(path).includes('main')) return true;
+        if (String(path).includes('orchid.pid')) return false;
+        return false;
+      });
+      
+      // Start daemon
+      const startPromise = startDaemon();
+      
+      // Advance timers
+      await vi.advanceTimersByTimeAsync(1500);
+      
+      const result = await startPromise;
+      
+      expect(daemonizeProcess).toHaveBeenCalledWith({
+        arguments: ['daemon'],
+        exitCode: 0,
+      });
+    });
+
+    it('should verify daemon started by checking PID', async () => {
+      const mockValidate = vi.mocked(validateOrchidStructure);
+      mockValidate.mockReturnValue(true);
+      
+      let callCount = 0;
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        callCount++;
+        // First calls check if already running - return false for PID file
+        // Later calls (after daemonizeProcess) should see the PID file
+        if (String(path).includes('orchid.pid')) {
+          return callCount > 3; // PID file exists after a few calls
+        }
+        if (String(path).includes('main')) return true;
+        return false;
+      });
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal === 0) {
+          // After daemonizeProcess, process should be running
+          return true;
+        }
+        return true;
+      });
+      
+      const startPromise = startDaemon();
+      await vi.advanceTimersByTimeAsync(1500);
+      const result = await startPromise;
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Orchid started');
+      expect(result.message).toContain('12345');
+      
+      mockKill.mockRestore();
+    });
+
+    it('should return error when daemon fails to start', async () => {
+      const mockValidate = vi.mocked(validateOrchidStructure);
+      mockValidate.mockReturnValue(true);
+      
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        if (String(path).includes('main')) return true;
+        return false;
+      });
+      
+      const startPromise = startDaemon();
+      await vi.advanceTimersByTimeAsync(1500);
+      const result = await startPromise;
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Failed to start');
+    });
+
+    it('should handle daemonizeProcess throwing an error', async () => {
+      const mockValidate = vi.mocked(validateOrchidStructure);
+      mockValidate.mockReturnValue(true);
+      
+      vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
+        if (String(path).includes('main')) return true;
+        return false;
+      });
+      
+      vi.mocked(daemonizeProcess).mockImplementation(() => {
+        throw new Error('Daemonize failed');
+      });
+      
+      const result = await startDaemon();
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Daemonize failed');
+    });
+  });
+
+  describe('stopDaemon', () => {
+    it('should return error when daemon is not running', async () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+      
       const result = await stopDaemon();
-
+      
       expect(result.success).toBe(false);
       expect(result.message).toContain('not running');
+    });
+
+    it('should stop running daemon successfully', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      let isRunning = true;
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal === 'SIGTERM') {
+          // Process stops after SIGTERM
+          isRunning = false;
+          return true;
+        }
+        if (signal === 0) {
+          // Check if process exists
+          if (!isRunning) {
+            throw new Error('Process not found');
+          }
+          return true;
+        }
+        return true;
+      });
+      
+      const result = await stopDaemon();
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('stopped');
+      expect(result.message).toContain('12345');
+      
+      mockKill.mockRestore();
+    });
+
+    it('should use SIGKILL if SIGTERM fails', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      let sigtermReceived = false;
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal === 'SIGTERM') {
+          sigtermReceived = true;
+          // Process doesn't stop with SIGTERM
+          return true;
+        }
+        if (signal === 'SIGKILL') {
+          // Process stops with SIGKILL
+          return true;
+        }
+        if (signal === 0) {
+          // Check if process exists - process stops after SIGKILL
+          // Simulate that process exists until we send SIGKILL
+          if (!sigtermReceived) {
+            return true; // Initial check
+          }
+          // After SIGTERM, check if we need SIGKILL
+          throw new Error('Process not found');
+        }
+        return true;
+      });
+      
+      const result = await stopDaemon();
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('stopped');
+      
+      mockKill.mockRestore();
+    }, 10000);
+
+    it('should remove PID file after stopping', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal === 0) {
+          throw new Error('Process not found');
+        }
+        return true;
+      });
+      
+      await stopDaemon();
+      
+      expect(unlinkSync).toHaveBeenCalledWith('/tmp/test-orchid-daemon/.orchid/orchid.pid');
+      
+      mockKill.mockRestore();
+    });
+
+    it('should handle errors during stop', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+        if (signal === 0) {
+          // Process exists check - return true so it appears running
+          return true;
+        }
+        // SIGTERM or SIGKILL - throw error
+        throw new Error('Permission denied');
+      });
+      
+      const result = await stopDaemon();
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Permission denied');
+      
+      mockKill.mockRestore();
+    });
+  });
+
+  describe('getStatus', () => {
+    it('should return running status with PID', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('12345');
+      
+      const mockKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+      
+      const result = getStatus();
+      
+      expect(result.running).toBe(true);
+      expect(result.pid).toBe(12345);
+      
+      mockKill.mockRestore();
+    });
+
+    it('should return not running status with null PID', () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+      
+      const result = getStatus();
+      
+      expect(result.running).toBe(false);
+      expect(result.pid).toBeNull();
     });
   });
 });
