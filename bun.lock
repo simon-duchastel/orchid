@@ -10,6 +10,7 @@
         "@cliffy/table": "npm:@jsr/cliffy__table@1.0.0",
         "@mariozechner/pi-coding-agent": "0.55.0",
         "cliffy-flat-help": "1.2.2",
+        "daemonize-process": "^4.1.1",
         "dyson-swarm": "1.4.0",
         "open": "11.0.0",
         "simple-git": "3.31.1",
@@ -512,6 +513,8 @@
     "consola": ["consola@3.4.2", "", {}, "sha512-5IKcdX0nnYavi6G7TtOhwkYzyjfJlatbjMjuLSfE2kYT5pMDOilZ4OvMhi637CcDICTmz3wARPoyhqyX1Y+XvA=="],
 
     "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
+
+    "daemonize-process": ["daemonize-process@4.1.1", "", {}, "sha512-HCnsEluUmDaIrrFQ0193mV0J8xEzLTJZIZ62HxyPmMuZzlwLxl9SORAT4bvwyqqWB9vGvzUiKF0HoQigwLhMXQ=="],
 
     "data-uri-to-buffer": ["data-uri-to-buffer@6.0.2", "", {}, "sha512-7hvf7/GW8e86rW0ptuwS3OcBGDjIi6SZva7hCyWC0yYry2cOPmLIjXAUHI6DK2HsnwJd9ifmt57i8eV2n4YNpw=="],
 

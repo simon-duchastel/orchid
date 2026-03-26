@@ -1,19 +1,16 @@
 /**
  * Process Manager
  *
- * Handles starting and stopping the orchid daemon process.
+ * Handles starting and stopping the orchid daemon process using daemonize-process.
  * Uses PID file to track running instance and manages the daemon lifecycle.
  */
 
-import { spawn } from "node:child_process";
-import { existsSync, readFileSync, unlinkSync, mkdirSync, openSync, closeSync, writeSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { daemonizeProcess } from "daemonize-process";
 import {
   getPidFile,
   getLogFile,
   getErrorLogFile,
-  getOrchidDir,
   getMainRepoDir,
 } from "./paths.js";
 import { validateOrchidStructure } from "./index.js";
@@ -101,62 +98,17 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     }
   }
 
-  // Get directory-specific paths
-  const orchidDir = getOrchidDir();
+  // Get log file paths
   const logFile = getLogFile();
   const errorLogFile = getErrorLogFile();
 
-  // Ensure orchid directory exists
-  if (!existsSync(orchidDir)) {
-    mkdirSync(orchidDir, { recursive: true });
-  }
-
-  // Find the daemon script
-  // In development, it's at src/cliMain.ts (run via bun)
-  // In production, it's at dist/cliMain.js
-  // In compiled mode, we run the same binary with "daemon" command
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-  const daemonScript = join(__dirname, "..", "..", "cliMain.js");
-  const isDev = !existsSync(daemonScript);
-
-  // Open log files
-  const outFd = openSync(logFile, "a");
-  const errFd = openSync(errorLogFile, "a");
-
-  // Write timestamps to log files
-  const timestamp = new Date().toISOString();
-  writeSync(outFd, `[${timestamp}] Starting orchid daemon\n`);
-  writeSync(errFd, `[${timestamp}] Starting orchid daemon\n`);
-
   try {
-    let child;
-
-    // Check if we're running as a compiled binary (bun --compile output)
-    // Compiled binaries don't have a .js extension in argv[1] and the file doesn't exist as a separate script
-    const isCompiledBinary = !process.argv[1]?.endsWith(".js") && !process.argv[1]?.endsWith(".ts");
-
-    if (isCompiledBinary) {
-      // Running as compiled binary - spawn the same binary with "daemon" command
-      const binaryPath = process.argv[1];
-      child = spawn(binaryPath, ["daemon"], {
-        detached: true,
-        stdio: ["ignore", outFd, errFd],
-      });
-    } else if (isDev) {
-      const devDaemonScript = join(__dirname, "..", "..", "cliMain.ts");
-      child = spawn("bun", [devDaemonScript], {
-        detached: true,
-        stdio: ["ignore", outFd, errFd],
-      });
-    } else {
-      child = spawn("bun", [daemonScript], {
-        detached: true,
-        stdio: ["ignore", outFd, errFd],
-      });
-    }
-
-    // Let the child run independently
-    child.unref();
+    // Use daemonize-process to spawn the daemon
+    // This will respawn the current process with the daemon argument
+    daemonizeProcess({
+      arguments: ["daemon"],
+      exitCode: 0,
+    });
 
     // Wait a moment for the daemon to start and write its PID
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -174,9 +126,11 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
         message: `Failed to start orchid. Check logs at ${errorLogFile}`,
       };
     }
-  } finally {
-    closeSync(outFd);
-    closeSync(errFd);
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to start orchid: ${err}`,
+    };
   }
 }
 
