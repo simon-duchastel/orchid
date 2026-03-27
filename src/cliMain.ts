@@ -69,7 +69,7 @@ export async function startDaemonProcess() {
 
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
-    process.on("exit", () => shutdown("exit"));
+    // Note: Don't register 'exit' event - it fires when event loop is empty and causes premature exit
 
     log.log("[orchid] Daemon ready");
 

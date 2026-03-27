@@ -106,15 +106,17 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   try {
     // Use Bun.spawn to spawn the daemon in the background
     // Detect if we're running from a compiled binary
-    const isCompiledBinary = import.meta.url.includes('/$bunfs/');
+    // Check multiple indicators: $bunfs in import.meta.url, or running from process.argv[0] directly
+    const isCompiledBinary = import.meta.url.includes('/$bunfs/') || 
+                             (process.argv[0] && !process.argv[0].includes('bun') && !process.argv[0].includes('node'));
     
     let spawnArgs: string[];
     let spawnOptions: { detached: boolean; stdio: ("ignore" | "pipe")[] };
     
     if (isCompiledBinary) {
       // In compiled mode, spawn the binary itself with daemon argument
-      // process.argv[0] is the path to the compiled binary
-      spawnArgs = [process.argv[0], "daemon"];
+      // process.execPath is the path to the compiled binary
+      spawnArgs = [process.execPath, "daemon"];
       spawnOptions = {
         detached: true,
         stdio: ["ignore", "ignore", "ignore"],
