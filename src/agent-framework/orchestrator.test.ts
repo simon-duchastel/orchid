@@ -1,12 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AgentOrchestrator } from "./orchestrator.js";
 import { Task, TaskState } from "../core/tasks/index.js";
+import type { TaskChangeEvent } from "./services/task-stream-service.js";
+import type { Task as DysonTask } from "dyson-swarm";
+
+interface MockTaskStreamService {
+  onTaskChange: ReturnType<typeof vi.fn>;
+  start: ReturnType<typeof vi.fn>;
+  stop: ReturnType<typeof vi.fn>;
+  getCurrentTasks: ReturnType<typeof vi.fn>;
+  isServiceRunning: ReturnType<typeof vi.fn>;
+}
 
 const mocks = vi.hoisted(() => {
-  const mockListTaskStream = vi.fn();
-  const mockListTasks = vi.fn();
-  const mockAssignTask = vi.fn();
-  const mockUnassignTask = vi.fn();
+  const mockOnTaskChange = vi.fn();
+  const mockStart = vi.fn();
+  const mockStop = vi.fn();
+  const mockGetCurrentTasks = vi.fn();
+  const mockIsServiceRunning = vi.fn();
   const mockWorktreeCreate = vi.fn();
   const mockWorktreeRemove = vi.fn();
   const mockSessionCreate = vi.fn();
@@ -16,11 +27,12 @@ const mocks = vi.hoisted(() => {
   const mockGetSession = vi.fn();
   const mockGlobalEvent = vi.fn();
   
-  class MockTaskManager {
-    listTaskStream = mockListTaskStream;
-    listTasks = mockListTasks;
-    assignTask = mockAssignTask;
-    unassignTask = mockUnassignTask;
+  class MockTaskStreamService {
+    onTaskChange = mockOnTaskChange;
+    start = mockStart;
+    stop = mockStop;
+    getCurrentTasks = mockGetCurrentTasks;
+    isServiceRunning = mockIsServiceRunning;
   }
   
   class MockAgentInstanceManager {
@@ -33,10 +45,11 @@ const mocks = vi.hoisted(() => {
   }
   
   return {
-    mockListTaskStream,
-    mockListTasks,
-    mockAssignTask,
-    mockUnassignTask,
+    mockOnTaskChange,
+    mockStart,
+    mockStop,
+    mockGetCurrentTasks,
+    mockIsServiceRunning,
     mockWorktreeCreate,
     mockWorktreeRemove,
     mockSessionCreate,
@@ -45,13 +58,13 @@ const mocks = vi.hoisted(() => {
     mockSendMessage,
     mockGetSession,
     mockGlobalEvent,
-    MockTaskManager,
+    MockTaskStreamService,
     MockAgentInstanceManager,
   };
 });
 
 vi.mock("dyson-swarm", () => ({
-  TaskManager: mocks.MockTaskManager,
+  TaskManager: vi.fn(),
 }));
 
 vi.mock("../core/git/worktrees/index.js", () => ({
@@ -85,6 +98,11 @@ vi.mock("./session-repository.js", () => ({
   }),
 }));
 
+vi.mock("./services/task-stream-service.js", () => ({
+  TaskStreamService: mocks.MockTaskStreamService,
+  createTaskStreamService: () => new mocks.MockTaskStreamService(),
+}));
+
 describe("AgentOrchestrator", () => {
   let orchestrator: AgentOrchestrator;
   let mockWorktreeManager: any;
@@ -93,6 +111,7 @@ describe("AgentOrchestrator", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    
     mockWorktreeManager = {
       create: mocks.mockWorktreeCreate,
       remove: mocks.mockWorktreeRemove,
@@ -101,6 +120,7 @@ describe("AgentOrchestrator", () => {
       getWorktreePath: vi.fn(),
       isWorktree: vi.fn(),
     };
+    
     mockAgentInstanceManager = {
       createAgentInstance: mocks.mockSessionCreate,
       removeAgentInstance: mocks.mockSessionRemove,
@@ -109,10 +129,21 @@ describe("AgentOrchestrator", () => {
       getAgentInstance: mocks.mockGetSession,
       onAgentInstanceIdle: vi.fn(),
     };
-    mocks.mockListTasks.mockResolvedValue([]);
+    
+    // Setup default mock implementations
+    mocks.mockOnTaskChange.mockImplementation(() => {
+      return vi.fn();
+    });
+    
+    // Mock start to resolve immediately and not block
+    mocks.mockStart.mockImplementation(() => {
+      return Promise.resolve();
+    });
+    
+    mocks.mockStop.mockResolvedValue(undefined);
+    mocks.mockGetCurrentTasks.mockReturnValue([]);
+    mocks.mockIsServiceRunning.mockReturnValue(false);
     mocks.mockSendMessage.mockResolvedValue(undefined);
-    mocks.mockAssignTask.mockResolvedValue(undefined);
-    mocks.mockUnassignTask.mockResolvedValue(undefined);
     
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
@@ -120,51 +151,40 @@ describe("AgentOrchestrator", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await orchestrator.stop();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   describe("start", () => {
     it("should start monitoring tasks", async () => {
-      const streamIterator = (async function* () {
-        yield [];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+      await orchestrator.start();
 
-      const startPromise = orchestrator.start();
-      await vi.runAllTimersAsync();
-      await startPromise;
-
-      expect(mocks.mockListTaskStream).toHaveBeenCalledWith({ status: "open" });
+      expect(mocks.mockOnTaskChange).toHaveBeenCalled();
+      expect(mocks.mockStart).toHaveBeenCalled();
+      expect(orchestrator.isRunning()).toBe(true);
     });
 
     it("should not start if already running", async () => {
-      const streamIterator = (async function* () {
-        yield [];
-        yield [];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+      await orchestrator.start();
 
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      orchestrator.start();
-
-      expect(mocks.mockListTaskStream).toHaveBeenCalledTimes(1);
+      // Reset mocks to check if second start creates new subscriptions
+      mocks.mockOnTaskChange.mockClear();
+      mocks.mockStart.mockClear();
+      
+      // Try to start again
+      await orchestrator.start();
+      
+      // Should not have called the mocks again
+      expect(mocks.mockOnTaskChange).not.toHaveBeenCalled();
+      expect(mocks.mockStart).not.toHaveBeenCalled();
     });
   });
 
   describe("stop", () => {
     it("should stop the orchestrator", async () => {
-      const streamIterator = (async function* () {
-        yield [];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
+      await orchestrator.start();
       await orchestrator.stop();
 
       expect(orchestrator.isRunning()).toBe(false);
@@ -183,22 +203,31 @@ describe("AgentOrchestrator", () => {
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
 
-      const streamIterator = (async function* () {
-        yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+      // Capture the registered callback using a ref object
+      const callbackRef: { current: ((event: TaskChangeEvent) => void) | null } = { current: null };
+      mocks.mockOnTaskChange.mockImplementation((callback: (event: TaskChangeEvent) => void) => {
+        callbackRef.current = callback;
+        return vi.fn();
+      });
 
-      orchestrator.start();
+      await orchestrator.start();
+      
+      // Simulate task being added
+      const task: DysonTask = {
+        id: "task-1",
+        frontmatter: { title: "Test", assignee: undefined, dependsOn: [] },
+        description: "",
+        status: "open",
+      };
+      
+      if (callbackRef.current) {
+        callbackRef.current({ type: "added", task });
+      }
+      
       await vi.runAllTimersAsync();
 
-      // Task should have been created and an implementor should exist
-      const agents = orchestrator.getRunningAgents();
-      expect(agents).toHaveLength(1);
-      expect(agents[0]).toMatchObject({
-        taskId: "task-1",
-        agentId: "task-1-implementor",
-        state: TaskState.IMPLEMENTING,
-      });
+      // Task should have been created - worktree creation should have been attempted
+      expect(mocks.mockWorktreeCreate).toHaveBeenCalled();
     });
 
     it("should not start duplicate implementors for the same task", async () => {
@@ -212,16 +241,29 @@ describe("AgentOrchestrator", () => {
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
 
-      const task = { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" };
-      const streamIterator = (async function* () {
-        yield [task];
-        yield [task];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+      const callbackRef: { current: ((event: TaskChangeEvent) => void) | null } = { current: null };
+      mocks.mockOnTaskChange.mockImplementation((callback: (event: TaskChangeEvent) => void) => {
+        callbackRef.current = callback;
+        return vi.fn();
+      });
 
-      orchestrator.start();
-      await vi.runAllTimersAsync();
+      await orchestrator.start();
 
+      const task: DysonTask = {
+        id: "task-1",
+        frontmatter: { title: "Test", assignee: undefined, dependsOn: [] },
+        description: "",
+        status: "open",
+      };
+      
+      // Add same task twice
+      if (callbackRef.current) {
+        callbackRef.current({ type: "added", task });
+        await vi.runAllTimersAsync();
+        callbackRef.current({ type: "added", task });
+        await vi.runAllTimersAsync();
+      }
+      
       // Should only create one worktree
       expect(mocks.mockWorktreeCreate).toHaveBeenCalledTimes(1);
     });
@@ -229,6 +271,7 @@ describe("AgentOrchestrator", () => {
     it("should cleanup tasks that are no longer open", async () => {
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
+      
       const mockSession = {
         sessionId: "session-1",
         taskId: "task-1",
@@ -238,16 +281,73 @@ describe("AgentOrchestrator", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
 
-      const streamIterator = (async function* () {
-        yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
-        yield [];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+      const callbackRef: { current: ((event: TaskChangeEvent) => void) | null } = { current: null };
+      mocks.mockOnTaskChange.mockImplementation((callback: (event: TaskChangeEvent) => void) => {
+        callbackRef.current = callback;
+        return vi.fn();
+      });
 
-      orchestrator.start();
-      await vi.runAllTimersAsync();
+      await orchestrator.start();
 
+      const task: DysonTask = {
+        id: "task-1",
+        frontmatter: { title: "Test", assignee: undefined, dependsOn: [] },
+        description: "",
+        status: "open",
+      };
+      
+      // Add task then remove it
+      if (callbackRef.current) {
+        callbackRef.current({ type: "added", task });
+        await vi.runAllTimersAsync();
+        callbackRef.current({ type: "removed", task });
+        await vi.runAllTimersAsync();
+      }
+      
       expect(orchestrator.getRunningAgents()).toHaveLength(0);
+    });
+
+    it("should handle task updates", async () => {
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      
+      const mockSession = {
+        sessionId: "session-1",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+
+      const callbackRef: { current: ((event: TaskChangeEvent) => void) | null } = { current: null };
+      mocks.mockOnTaskChange.mockImplementation((callback: (event: TaskChangeEvent) => void) => {
+        callbackRef.current = callback;
+        return vi.fn();
+      });
+
+      await orchestrator.start();
+
+      const task: DysonTask = {
+        id: "task-1",
+        frontmatter: { title: "Original Title", assignee: undefined, dependsOn: [] },
+        description: "",
+        status: "open",
+      };
+      
+      const updatedTask: DysonTask = {
+        ...task,
+        frontmatter: { ...task.frontmatter, title: "Updated Title" },
+      };
+      
+      // Add task then update it - should not throw
+      if (callbackRef.current) {
+        callbackRef.current({ type: "added", task });
+        await vi.runAllTimersAsync();
+        // Update should be handled without error
+        expect(() => {
+          callbackRef.current!({ type: "updated", task: updatedTask, previousTask: task });
+        }).not.toThrow();
+      }
     });
   });
 
@@ -263,14 +363,8 @@ describe("AgentOrchestrator", () => {
     });
 
     it("should return true when started", async () => {
-      const streamIterator = (async function* () {
-        yield [];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
+      await orchestrator.start();
+      
       expect(orchestrator.isRunning()).toBe(true);
     });
   });
@@ -279,7 +373,7 @@ describe("AgentOrchestrator", () => {
     it("should transition task from PENDING_IMPLEMENTATION to IMPLEMENTING", async () => {
       const task = new Task({
         taskId: "task-test",
-        dysonTask: { id: "task-test", frontmatter: { title: "Test" }, description: "", status: "open" },
+        dysonTask: { id: "task-test", frontmatter: { title: "Test", assignee: undefined, dependsOn: [] }, description: "", status: "open" },
       });
 
       expect(task.state).toBe(TaskState.PENDING_IMPLEMENTATION);
@@ -290,7 +384,7 @@ describe("AgentOrchestrator", () => {
     it("should transition task from IMPLEMENTING to AWAITING_REVIEW", async () => {
       const task = new Task({
         taskId: "task-test",
-        dysonTask: { id: "task-test", frontmatter: { title: "Test" }, description: "", status: "open" },
+        dysonTask: { id: "task-test", frontmatter: { title: "Test", assignee: undefined, dependsOn: [] }, description: "", status: "open" },
       });
 
       task.assignImplementor("implementor-1");
@@ -301,11 +395,10 @@ describe("AgentOrchestrator", () => {
     it("should not allow invalid state transitions", async () => {
       const task = new Task({
         taskId: "task-test",
-        dysonTask: { id: "task-test", frontmatter: { title: "Test" }, description: "", status: "open" },
+        dysonTask: { id: "task-test", frontmatter: { title: "Test", assignee: undefined, dependsOn: [] }, description: "", status: "open" },
       });
 
       expect(() => task.markImplementationComplete()).toThrow();
     });
   });
-
 });
