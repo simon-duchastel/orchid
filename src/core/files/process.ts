@@ -58,13 +58,6 @@ export function getRunningPid(): number | null {
 }
 
 /**
- * Check if the daemon is currently running
- */
-export function isRunning(): boolean {
-  return getRunningPid() !== null;
-}
-
-/**
  * Start the daemon process
  *
  * @returns Object with success status and message
