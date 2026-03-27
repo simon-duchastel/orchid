@@ -1,17 +1,10 @@
 /**
- * Tests for process.ts using daemonize-process
+ * Tests for process.ts using Bun.spawn
  * Tests with proper mocking using Vitest - no real process spawning
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { startDaemon, stopDaemon, getStatus, getRunningPid, isRunning } from './process.js';
-
-// Mock daemonize-process
-vi.mock('daemonize-process', () => ({
-  daemonizeProcess: vi.fn(),
-}));
-
-import { daemonizeProcess } from 'daemonize-process';
 
 // Mock node:fs
 vi.mock('node:fs', () => ({
@@ -41,10 +34,32 @@ vi.mock('./paths.js', () => ({
   getWorktreesDir: () => '/tmp/test-orchid-daemon/worktrees',
 }));
 
-describe('process.ts with daemonize-process', () => {
+// Mock Bun
+const mockUnref = vi.fn();
+const mockSubprocess = {
+  unref: mockUnref,
+  pid: 12345,
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var Bun: {
+    spawn: ReturnType<typeof vi.fn>;
+  };
+}
+
+vi.stubGlobal('Bun', {
+  spawn: vi.fn().mockReturnValue(mockSubprocess),
+});
+
+describe('process.ts with Bun.spawn', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    mockUnref.mockClear();
+    vi.stubGlobal('Bun', {
+      spawn: vi.fn().mockReturnValue(mockSubprocess),
+    });
   });
 
   afterEach(() => {
@@ -136,7 +151,7 @@ describe('process.ts with daemonize-process', () => {
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('already running');
-      expect(daemonizeProcess).not.toHaveBeenCalled();
+      expect(Bun.spawn).not.toHaveBeenCalled();
       
       mockKill.mockRestore();
     });
@@ -160,7 +175,7 @@ describe('process.ts with daemonize-process', () => {
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('corrupted');
-      expect(daemonizeProcess).not.toHaveBeenCalled();
+      expect(Bun.spawn).not.toHaveBeenCalled();
       
       mockKill.mockRestore();
     });
@@ -178,10 +193,10 @@ describe('process.ts with daemonize-process', () => {
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('not properly initialized');
-      expect(daemonizeProcess).not.toHaveBeenCalled();
+      expect(Bun.spawn).not.toHaveBeenCalled();
     });
 
-    it('should daemonize process when starting successfully', async () => {
+    it('should spawn daemon with Bun.spawn when starting successfully', async () => {
       const mockValidate = vi.mocked(validateOrchidStructure);
       mockValidate.mockReturnValue(true);
       
@@ -199,10 +214,14 @@ describe('process.ts with daemonize-process', () => {
       
       const result = await startPromise;
       
-      expect(daemonizeProcess).toHaveBeenCalledWith({
-        arguments: ['daemon'],
-        exitCode: 0,
-      });
+      expect(Bun.spawn).toHaveBeenCalledWith(
+        expect.arrayContaining(['bun', 'run']),
+        expect.objectContaining({
+          detached: true,
+          stdio: ['ignore', 'ignore', 'ignore'],
+        })
+      );
+      expect(mockUnref).toHaveBeenCalled();
     });
 
     it('should verify daemon started by checking PID', async () => {
@@ -212,10 +231,8 @@ describe('process.ts with daemonize-process', () => {
       let callCount = 0;
       vi.mocked(existsSync).mockImplementation((path: import('node:fs').PathLike) => {
         callCount++;
-        // First calls check if already running - return false for PID file
-        // Later calls (after daemonizeProcess) should see the PID file
         if (String(path).includes('orchid.pid')) {
-          return callCount > 3; // PID file exists after a few calls
+          return callCount > 3;
         }
         if (String(path).includes('main')) return true;
         return false;
@@ -224,7 +241,6 @@ describe('process.ts with daemonize-process', () => {
       
       const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 0) {
-          // After daemonizeProcess, process should be running
           return true;
         }
         return true;
@@ -258,7 +274,7 @@ describe('process.ts with daemonize-process', () => {
       expect(result.message).toContain('Failed to start');
     });
 
-    it('should handle daemonizeProcess throwing an error', async () => {
+    it('should handle Bun.spawn throwing an error', async () => {
       const mockValidate = vi.mocked(validateOrchidStructure);
       mockValidate.mockReturnValue(true);
       
@@ -267,14 +283,16 @@ describe('process.ts with daemonize-process', () => {
         return false;
       });
       
-      vi.mocked(daemonizeProcess).mockImplementation(() => {
-        throw new Error('Daemonize failed');
+      vi.stubGlobal('Bun', {
+        spawn: vi.fn().mockImplementation(() => {
+          throw new Error('Spawn failed');
+        }),
       });
       
       const result = await startDaemon();
       
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Daemonize failed');
+      expect(result.message).toContain('Spawn failed');
     });
   });
 
@@ -295,12 +313,10 @@ describe('process.ts with daemonize-process', () => {
       let isRunning = true;
       const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 'SIGTERM') {
-          // Process stops after SIGTERM
           isRunning = false;
           return true;
         }
         if (signal === 0) {
-          // Check if process exists
           if (!isRunning) {
             throw new Error('Process not found');
           }
@@ -326,20 +342,15 @@ describe('process.ts with daemonize-process', () => {
       const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 'SIGTERM') {
           sigtermReceived = true;
-          // Process doesn't stop with SIGTERM
           return true;
         }
         if (signal === 'SIGKILL') {
-          // Process stops with SIGKILL
           return true;
         }
         if (signal === 0) {
-          // Check if process exists - process stops after SIGKILL
-          // Simulate that process exists until we send SIGKILL
           if (!sigtermReceived) {
-            return true; // Initial check
+            return true;
           }
-          // After SIGTERM, check if we need SIGKILL
           throw new Error('Process not found');
         }
         return true;
@@ -377,10 +388,8 @@ describe('process.ts with daemonize-process', () => {
       
       const mockKill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
         if (signal === 0) {
-          // Process exists check - return true so it appears running
           return true;
         }
-        // SIGTERM or SIGKILL - throw error
         throw new Error('Permission denied');
       });
       

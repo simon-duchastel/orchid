@@ -1,12 +1,11 @@
 /**
  * Process Manager
  *
- * Handles starting and stopping the orchid daemon process using daemonize-process.
+ * Handles starting and stopping the orchid daemon process using Bun.spawn.
  * Uses PID file to track running instance and manages the daemon lifecycle.
  */
 
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { daemonizeProcess } from "daemonize-process";
 import {
   getPidFile,
   getLogFile,
@@ -14,6 +13,8 @@ import {
   getMainRepoDir,
 } from "./paths.js";
 import { validateOrchidStructure } from "./index.js";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 /**
  * Check if a process with the given PID is running
@@ -103,12 +104,20 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   const errorLogFile = getErrorLogFile();
 
   try {
-    // Use daemonize-process to spawn the daemon
-    // This will respawn the current process with the daemon argument
-    daemonizeProcess({
-      arguments: ["daemon"],
-      exitCode: 0,
+    // Use Bun.spawn to spawn the daemon in the background
+    // Get the path to the CLI entry point
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const cliPath = join(__dirname, "..", "..", "cli", "index.js");
+
+    // Spawn the daemon process with detached: true so it runs in the background
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subprocess = (Bun as any).spawn(["bun", "run", cliPath, "daemon"], {
+      detached: true,
+      stdio: ["ignore", "ignore", "ignore"],
     });
+
+    subprocess.unref(); // Allow parent to exit independently
 
     // Wait a moment for the daemon to start and write its PID
     await new Promise((resolve) => setTimeout(resolve, 1500));
