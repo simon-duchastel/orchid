@@ -115,7 +115,7 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     
     if (isCompiledBinary) {
       // In compiled mode, spawn the binary itself with daemon argument
-      // process.execPath is the path to the compiled binary (not process.argv[0] which is "bun")
+      // process.execPath is the path to the compiled binary
       spawnArgs = [process.execPath, "daemon"];
       spawnOptions = {
         detached: true,
