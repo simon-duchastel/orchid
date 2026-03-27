@@ -8,7 +8,7 @@
     "orchid": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsup && bun build dist/cli.js --compile --outfile bin/orchid",
+    "build": "tsup && bun build dist/cli.js --compile --outfile bin/orchid && cp package.json bin/",
     "dev": "tsx src/cli/index.ts",
     "start": "./bin/orchid",
     "test": "vitest --run",
