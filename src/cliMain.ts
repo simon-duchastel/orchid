@@ -74,6 +74,9 @@ export async function startDaemonProcess() {
     log.log("[orchid] Daemon ready");
 
     // Keep the process alive
+    // Note: In Bun compiled binaries, an empty Promise doesn't keep the event loop alive.
+    // We need an active timer to prevent the process from exiting.
+    setInterval(() => {}, 1000);
     await new Promise(() => {});
   } catch (err: unknown) {
     log.error("[orchid] Failed to start daemon:", err);
