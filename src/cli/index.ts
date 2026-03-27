@@ -1,3 +1,8 @@
+// Initialize embedded files FIRST before any other imports
+// This is critical for compiled binaries to work correctly
+import { initEmbeddedFiles } from "../core/embed.js";
+await initEmbeddedFiles();
+
 import { Command } from "@cliffy/command";
 import { flatHelp } from "cliffy-flat-help";
 

@@ -8,6 +8,7 @@ export default defineConfig([
     clean: true,
     sourcemap: true,
     dts: true,
+    external: ["bun"],
     banner: {
       js: "#!/usr/bin/env node",
     },
@@ -18,5 +19,6 @@ export default defineConfig([
     target: "node20",
     sourcemap: true,
     dts: true,
+    external: ["bun"],
   },
 ]);

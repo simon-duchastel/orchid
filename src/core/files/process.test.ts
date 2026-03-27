@@ -41,13 +41,6 @@ const mockSubprocess = {
   pid: 12345,
 };
 
-declare global {
-  // eslint-disable-next-line no-var
-  var Bun: {
-    spawn: ReturnType<typeof vi.fn>;
-  };
-}
-
 vi.stubGlobal('Bun', {
   spawn: vi.fn().mockReturnValue(mockSubprocess),
 });
