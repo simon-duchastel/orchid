@@ -108,13 +108,13 @@ describe('orchidDir.ts - Orchid Initialization', () => {
       expect(validateOrchidStructure()).toBe(false);
     });
 
-    it('should reject when PID file missing', () => {
+    it('should accept when PID file is missing (runtime state)', () => {
       vi.mocked(existsSync).mockImplementation((path) => {
         const pathStr = String(path);
         if (pathStr.includes('orchid.pid')) return false;
         return true;
       });
-      expect(validateOrchidStructure()).toBe(false);
+      expect(validateOrchidStructure()).toBe(true);
     });
 
     it('should reject when main directory missing', () => {
