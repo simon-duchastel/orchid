@@ -139,11 +139,15 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
 
     subprocess.unref(); // Allow parent to exit independently
 
-    // Wait a moment for the daemon to start and write its PID
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Poll for the daemon to start and write its PID (max 2 seconds)
+    let pid: number | null = null;
+    for (let i = 0; i < 20; i++) {
+      await sleep(100);
+      pid = getRunningPid();
+      if (pid !== null) break;
+    }
 
     // Verify it started
-    const pid = getRunningPid();
     if (pid !== null) {
       return {
         success: true,
