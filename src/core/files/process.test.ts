@@ -209,8 +209,8 @@ describe('process.ts with Bun.spawn', () => {
       // Start daemon
       const startPromise = startDaemon();
       
-      // Advance timers
-      await vi.advanceTimersByTimeAsync(1500);
+      // Advance timers for the polling loop (up to 20 iterations of 100ms)
+      await vi.advanceTimersByTimeAsync(2000);
       
       const result = await startPromise;
       
@@ -247,7 +247,7 @@ describe('process.ts with Bun.spawn', () => {
       });
       
       const startPromise = startDaemon();
-      await vi.advanceTimersByTimeAsync(1500);
+      await vi.advanceTimersByTimeAsync(2000);
       const result = await startPromise;
       
       expect(result.success).toBe(true);
@@ -267,7 +267,7 @@ describe('process.ts with Bun.spawn', () => {
       });
       
       const startPromise = startDaemon();
-      await vi.advanceTimersByTimeAsync(1500);
+      await vi.advanceTimersByTimeAsync(2000);
       const result = await startPromise;
       
       expect(result.success).toBe(false);
