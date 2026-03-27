@@ -142,9 +142,9 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     // Poll for the daemon to start and write its PID (max 2 seconds)
     let pid: number | null = null;
     for (let i = 0; i < 20; i++) {
-      await sleep(100);
       pid = getRunningPid();
       if (pid !== null) break;
+      await sleep(100);
     }
 
     // Verify it started
