@@ -105,17 +105,35 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
 
   try {
     // Use Bun.spawn to spawn the daemon in the background
-    // Get the path to the CLI entry point
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const cliPath = join(__dirname, "..", "..", "cli", "index.js");
+    // Detect if we're running from a compiled binary
+    const isCompiledBinary = import.meta.url.includes('/$bunfs/');
+    
+    let spawnArgs: string[];
+    let spawnOptions: { detached: boolean; stdio: ("ignore" | "pipe")[] };
+    
+    if (isCompiledBinary) {
+      // In compiled mode, spawn the binary itself with daemon argument
+      // process.argv[0] is the path to the compiled binary
+      spawnArgs = [process.argv[0], "daemon"];
+      spawnOptions = {
+        detached: true,
+        stdio: ["ignore", "ignore", "ignore"],
+      };
+    } else {
+      // In source mode, use bun run to spawn the CLI
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const cliPath = join(__dirname, "..", "..", "cli", "index.js");
+      spawnArgs = ["bun", "run", cliPath, "daemon"];
+      spawnOptions = {
+        detached: true,
+        stdio: ["ignore", "ignore", "ignore"],
+      };
+    }
 
     // Spawn the daemon process with detached: true so it runs in the background
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const subprocess = (Bun as any).spawn(["bun", "run", cliPath, "daemon"], {
-      detached: true,
-      stdio: ["ignore", "ignore", "ignore"],
-    });
+    const subprocess = (Bun as any).spawn(spawnArgs, spawnOptions);
 
     subprocess.unref(); // Allow parent to exit independently
 
