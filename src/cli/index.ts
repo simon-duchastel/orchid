@@ -1,3 +1,6 @@
+// MUST be first import - patches fs.readFileSync for embedded files
+import "../core/embed.js";
+
 import { Command } from "@cliffy/command";
 import { flatHelp } from "cliffy-flat-help";
 
