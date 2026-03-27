@@ -31,5 +31,4 @@ export {
   stopDaemon,
   getStatus,
   getRunningPid,
-  isRunning,
 } from './process.js';

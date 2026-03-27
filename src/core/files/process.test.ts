@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { startDaemon, stopDaemon, getStatus, getRunningPid, isRunning } from './process.js';
+import { startDaemon, stopDaemon, getStatus, getRunningPid } from './process.js';
 
 // Mock node:fs
 vi.mock('node:fs', () => ({
@@ -114,29 +114,6 @@ describe('process.ts with Bun.spawn', () => {
       expect(unlinkSync).toHaveBeenCalledWith('/tmp/test-orchid-daemon/.orchid/orchid.pid');
       
       mockKill.mockRestore();
-    });
-  });
-
-  describe('isRunning', () => {
-    it('should return true when daemon is running', () => {
-      vi.mocked(existsSync).mockReturnValue(true);
-      vi.mocked(readFileSync).mockReturnValue('12345');
-      
-      const mockKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
-      
-      const result = isRunning();
-      
-      expect(result).toBe(true);
-      
-      mockKill.mockRestore();
-    });
-
-    it('should return false when daemon is not running', () => {
-      vi.mocked(existsSync).mockReturnValue(false);
-      
-      const result = isRunning();
-      
-      expect(result).toBe(false);
     });
   });
 
