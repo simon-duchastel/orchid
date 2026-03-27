@@ -69,10 +69,6 @@ export function validateOrchidStructure(): boolean {
     return false;
   }
 
-  if (!existsSync(pidFile)) {
-    return false;
-  }
-
   if (!existsSync(mainRepoDir)) {
     return false;
   }
@@ -81,14 +77,16 @@ export function validateOrchidStructure(): boolean {
     return false;
   }
 
-  // Validate PID file contains a valid number or is empty
-  try {
-    const pidContent = readFileSync(pidFile, "utf-8").trim();
-    if (pidContent && !/^\d+$/.test(pidContent)) {
+  // If PID file exists, validate it contains valid content (empty or numeric)
+  if (existsSync(pidFile)) {
+    try {
+      const pidContent = readFileSync(pidFile, "utf-8").trim();
+      if (pidContent && !/^\d+$/.test(pidContent)) {
+        return false;
+      }
+    } catch {
       return false;
     }
-  } catch {
-    return false;
   }
 
   return true;
