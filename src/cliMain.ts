@@ -8,6 +8,7 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { getPidFile, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./core/files/paths.js";
 import { PiSessionAdapter } from "./agent-framework/agents/interface/index.js";
+import { AgentOrchestrator } from "./agent-framework/orchestrator.js";
 import { log } from "./core/logging/logger.js";
 
 export async function startDaemonProcess() {
@@ -49,9 +50,24 @@ export async function startDaemonProcess() {
 
     log.log("[orchid] Pi session manager initialized");
 
+    // Create and start the agent orchestrator
+    // This will connect to dyson-swarm and start monitoring for tasks
+    const orchestrator = new AgentOrchestrator({
+      agentInstanceManager: sessionManager,
+    });
+    
+    await orchestrator.start();
+    log.log("[orchid] Agent orchestrator started");
+
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
       log.log(`[orchid] Received ${signal}, shutting down...`);
+      
+      // Stop the orchestrator first (stops task monitoring and agents)
+      await orchestrator.stop();
+      log.log("[orchid] Orchestrator stopped");
+      
+      // Stop all agent instances
       await sessionManager.stopAllAgentInstances();
       
       // Remove PID file on shutdown

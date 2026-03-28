@@ -23,6 +23,7 @@ import { createImplementorAgent, type ImplementorAgent } from "./agents/implemen
 import { createReviewerAgent, type ReviewerAgent } from "./agents/reviewer.js";
 import { createMergerAgent, type MergerAgent } from "./agents/merger.js";
 import { log } from "../core/logging/index.js";
+import { TaskStreamService, type TaskChangeEvent } from "./services/task-stream-service.js";
 
 export interface AgentInfo {
   taskId: string;
@@ -36,9 +37,11 @@ export interface AgentOrchestratorOptions {
   cwdProvider?: () => string;
   worktreeManager?: WorktreeManager;
   agentInstanceManager?: AgentInstanceManager;
+  taskStreamService?: TaskStreamService;
 }
 
 export class AgentOrchestrator {
+  private taskStreamService: TaskStreamService;
   private taskManager: TaskManager;
   private tasks: Map<string, Task> = new Map();
   private implementors: Map<string, ImplementorAgent> = new Map();
@@ -51,11 +54,20 @@ export class AgentOrchestrator {
   private taskRepository: TaskRepository;
   private cwdProvider: () => string;
   private worktreesDir: string;
+  private unsubscribeFromTaskChanges: (() => void) | null = null;
 
   constructor(options: AgentOrchestratorOptions) {
     this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
-    this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
     this.worktreeManager = options.worktreeManager ?? new WorktreeManager(this.cwdProvider());
+    
+    // Initialize task manager (still needed for agent task operations)
+    this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
+    
+    // Initialize task stream service
+    this.taskStreamService = options.taskStreamService ?? new TaskStreamService({
+      cwdProvider: this.cwdProvider,
+      filter: { status: "open" },
+    });
     
     // Initialize agent instance manager
     this.worktreesDir = getWorktreesDir(this.cwdProvider);
@@ -82,26 +94,19 @@ export class AgentOrchestrator {
     this.abortController = new AbortController();
     log.log("[orchestrator] Starting task monitor...");
 
-    // TODO: Implement generic event listener via AgentInstanceManager
-    // This will be added in a future PR
-    log.log("[orchestrator] Note: Event listener will be implemented in future PR");
+    // Subscribe to task changes from the stream service
+    this.unsubscribeFromTaskChanges = this.taskStreamService.onTaskChange(
+      (event) => this.handleTaskChange(event)
+    );
 
-    try {
-      const stream = this.taskManager.listTaskStream({ status: "open" });
+    // Start the task stream service
+    // This will begin listening to the dyson-swarm stream
+    // We don't await this - it runs in the background
+    this.taskStreamService.start().catch((error) => {
+      log.error("[orchestrator] Task stream service error:", error);
+    });
 
-      for await (const dysonTasks of stream) {
-        if (this.abortController.signal.aborted) {
-          break;
-        }
-        await this.syncTasks(dysonTasks);
-      }
-    } catch (error) {
-      if ((error as Error).name === "AbortError") {
-        log.log("[orchestrator] Task monitor aborted");
-      } else {
-        log.error("[orchestrator] Error in task monitor:", error);
-      }
-    }
+    log.log("[orchestrator] Task monitor started");
   }
 
   async stop(): Promise<void> {
@@ -112,6 +117,15 @@ export class AgentOrchestrator {
     log.log("[orchestrator] Stopping...");
     this.abortController.abort();
     this.abortController = null;
+
+    // Unsubscribe from task changes
+    if (this.unsubscribeFromTaskChanges) {
+      this.unsubscribeFromTaskChanges();
+      this.unsubscribeFromTaskChanges = null;
+    }
+
+    // Stop task stream service
+    await this.taskStreamService.stop();
 
     // Stop all implementor agents
     log.log("[orchestrator] Stopping all implementor agents...");
@@ -156,9 +170,91 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Sync tasks with dyson-swarm.
-   * Creates tasks for new open tasks, removes tasks that are no longer open.
+   * Handle task change events from the task stream service.
+   * Routes to appropriate handler based on change type.
    */
+  private async handleTaskChange(event: TaskChangeEvent): Promise<void> {
+    switch (event.type) {
+      case "added":
+        await this.handleTaskAdded(event.task);
+        break;
+      case "removed":
+        await this.handleTaskRemoved(event.task);
+        break;
+      case "updated":
+        await this.handleTaskUpdated(event.task, event.previousTask!);
+        break;
+    }
+  }
+
+  /**
+   * Handle a new task being added.
+   */
+  private async handleTaskAdded(dysonTask: DysonTask): Promise<void> {
+    if (!this.tasks.has(dysonTask.id)) {
+      const task = createTaskFromDyson(dysonTask, this.worktreesDir);
+      this.tasks.set(task.taskId, task);
+      log.log(`[orchestrator] Created task ${task.taskId}`);
+      
+      // Process the task immediately
+      await this.processTasks();
+    }
+  }
+
+  /**
+   * Handle a task being removed.
+   */
+  private async handleTaskRemoved(dysonTask: DysonTask): Promise<void> {
+    const taskId = dysonTask.id;
+    log.log(`[orchestrator] Task ${taskId} no longer open, cleaning up`);
+    
+    // Stop implementor if running
+    const implementor = this.implementors.get(taskId);
+    if (implementor) {
+      await implementor.stop();
+      this.implementors.delete(taskId);
+    }
+    
+    // Stop reviewer if running
+    const reviewer = this.reviewers.get(taskId);
+    if (reviewer) {
+      await reviewer.stop();
+      this.reviewers.delete(taskId);
+    }
+    
+    // Stop merger if running
+    const merger = this.mergers.get(taskId);
+    if (merger) {
+      await merger.stop();
+      this.mergers.delete(taskId);
+    }
+    
+    this.tasks.delete(taskId);
+  }
+
+  /**
+   * Handle a task being updated.
+   * For now, we just log the update. In the future, this could trigger
+   * re-processing if task properties affect agent assignment.
+   */
+  private async handleTaskUpdated(dysonTask: DysonTask, previousTask: DysonTask): Promise<void> {
+    log.log(`[orchestrator] Task ${dysonTask.id} updated`);
+    
+    // If the task is already being tracked, update it
+    const existingTask = this.tasks.get(dysonTask.id);
+    if (existingTask) {
+      // Re-create the task with new properties
+      const updatedTask = createTaskFromDyson(dysonTask, this.worktreesDir);
+      // Preserve the state and agent assignments from the existing task
+      this.tasks.set(dysonTask.id, updatedTask);
+    }
+  }
+
+  /**
+    * Sync tasks with dyson-swarm.
+    * Creates tasks for new open tasks, removes tasks that are no longer open.
+    * @deprecated Use handleTaskChange instead
+    */
   private async syncTasks(dysonTasks: DysonTask[]): Promise<void> {
     const openTaskIds = new Set(dysonTasks.map((t) => t.id));
 
